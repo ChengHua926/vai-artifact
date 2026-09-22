@@ -26,7 +26,7 @@ python -m eval.run fetch --archive corpus/paper_main_v1-corpus.tar.gz
 python -m eval.run evaluate --benchmark all
 ```
 
-Requires Python 3.12, Foundry (`forge`, `anvil`), and for the integrations the pinned Hermes and OpenClaw checkouts named in `integrations/*/upstream.json`.
+Requires Python 3.12, Foundry (`forge`, `anvil`), `agentdojo==1.2.2` for the AgentDojo replay, and for the integrations the pinned Hermes and OpenClaw checkouts named in `integrations/*/upstream.json`. The ClawsBench replay reads `eval/clawsbench/corpus/`, restored by `tar xzf corpus/clawsbench-standard60-corpus.tar.gz -C eval/clawsbench`.
 
 ## What is not included
 
@@ -35,7 +35,7 @@ Requires Python 3.12, Foundry (`forge`, `anvil`), and for the integrations the p
 - The 74 MB SQLite trace store from the recording-overhead run; its summaries are in `supplement/2026-09-16-practicality-and-agentdojo/practicality/`.
 - The patched Hermes and OpenClaw trees themselves; apply the patches in `integrations/*/patches/` to the pinned upstream commits.
 
-Because paths were rewritten for review, every checksum file (`SHA256SUMS`, `ROOT_SHA256`, `*.sha256`, `MANIFEST.json`) was recomputed over the rewritten bytes, the seal manifests under `eval/paper_main_v1/seal/` and `cohort.lock.json` were resealed over the rewritten captures, and the original-seal anchor in `eval/dataset.py` was re-pinned accordingly. `python -m eval.run fetch` and `python -m eval.run verify` pass on this copy.
+Because paths were rewritten for review, every checksum file (`SHA256SUMS`, `ROOT_SHA256`, `*.sha256`, `MANIFEST.json`) was recomputed over the rewritten bytes, the seal manifests under `eval/paper_main_v1/seal/` and `cohort.lock.json` were resealed over the rewritten captures, and the original-seal anchor in `eval/dataset.py` was re-pinned accordingly. `python -m eval.run fetch` and `python -m eval.run verify` pass on this copy, and `python -m eval.run evaluate --benchmark tau` reproduces the committed `eval/paper_main_v1/tau/` ledgers byte for byte. Case ids are derived from shard root hashes, so the ids in those ledgers differ from the ids in `eval/reference_v2/` and in the annotations release, which keep the paper's original ids; `eval/paper_main_v1/case_id_map.json` maps the original ids to the ids this copy produces. Verdicts, counts, and every non-identity field are identical.
 
 ## Licenses
 
