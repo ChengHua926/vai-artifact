@@ -35,7 +35,7 @@ Requires Python 3.12, Foundry (`forge`, `anvil`), and for the integrations the p
 - The 74 MB SQLite trace store from the recording-overhead run; its summaries are in `supplement/2026-09-16-practicality-and-agentdojo/practicality/`.
 - The patched Hermes and OpenClaw trees themselves; apply the patches in `integrations/*/patches/` to the pinned upstream commits.
 
-Because paths were rewritten for review, `SHA256SUMS`, `ROOT_SHA256`, `*.sha256`, and `MANIFEST.json` files were recomputed over the rewritten bytes. `eval/paper_main_v1/dataset.json` points at the archive in `corpus/`. Manifests that record hashes of the original captures inside `cohort.lock.json` and `seal/` were left as recorded.
+Because paths were rewritten for review, every checksum file (`SHA256SUMS`, `ROOT_SHA256`, `*.sha256`, `MANIFEST.json`) was recomputed over the rewritten bytes, the seal manifests under `eval/paper_main_v1/seal/` and `cohort.lock.json` were resealed over the rewritten captures, and the original-seal anchor in `eval/dataset.py` was re-pinned accordingly. `python -m eval.run fetch` and `python -m eval.run verify` pass on this copy.
 
 ## Licenses
 
