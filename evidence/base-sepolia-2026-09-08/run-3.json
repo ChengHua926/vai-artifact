@@ -1,0 +1,1340 @@
+{
+  "schema_version": 1,
+  "status": "failed",
+  "started_at_utc": "2026-09-08T21:10:36.513417+00:00",
+  "source_revision": "c57f99f38b5cd89e10eb98a96df91a18322a1a26",
+  "source_dirty": false,
+  "module_sources": {
+    "aa_commons": "packages/commons/aa_commons/__init__.py",
+    "aa_sdk": "packages/sdk/aa_sdk/__init__.py",
+    "aa_verifier": "packages/verifier/aa_verifier/__init__.py",
+    "_config": "scripts/_config.py"
+  },
+  "chain_id": 84532,
+  "artifact_sha256": "bd156e5ce4dfe0ec38d7824fe071c4e9749bd6664a448b5ce7142dce466e402c",
+  "contract_source_sha256": "f1c89a47214e6cd6da8d472bf2e3c5501ab937563fd095a3f18e4892340d3ad6",
+  "actors": {
+    "provider": "0x40d1d7Dc9539A3B5232e4Ee433351c0F60916E3B",
+    "challenger": "0xC5A392d7fe3494be737b43502F8F149351e255dd",
+    "verifier": "0xFBedb613973053BD135Dea58948F99eb8a04eC85",
+    "deployer": "0xFBedb613973053BD135Dea58948F99eb8a04eC85"
+  },
+  "balances_before_wei": {
+    "provider": 2096469909984088,
+    "challenger": 2298909893276083,
+    "verifier": 2063315449977566
+  },
+  "scenario_origin": "SDK protocol scenarios with synthetic authorization decisions; native framework tests are separate",
+  "clock_policy": "unchanged contract deadlines; no time travel",
+  "checkpoint_defaults": {
+    "records": 10,
+    "seconds_while_dirty": 30,
+    "outage": "continue and retry"
+  },
+  "predicates": [
+    {
+      "number": "AAP-1",
+      "spec_id": "no_destructive_without_consent",
+      "version": 3,
+      "statement": "invocation authorization binds one actual tool call; legacy target/scope grants remain explicit",
+      "predicate_hash": "0x52d33e2d379bdc8a516bc06844e1a144f1d1fe7a49d921ce63cb08e50b8b8d8e"
+    },
+    {
+      "number": "AAP-2",
+      "spec_id": "action_within_declared_scope",
+      "version": 3,
+      "statement": "scoped actions must stay (lexically) within the declared scope, e.g. under workspace/",
+      "predicate_hash": "0x8e97a6466b861f76708de7d453035062cad592b4e9c51670467ea2509e46dbe7"
+    },
+    {
+      "number": "AAP-3",
+      "spec_id": "payment_within_mandate",
+      "version": 1,
+      "statement": "payments must stay within budget and the merchant allowlist",
+      "predicate_hash": "0xf70c8ee28ab7904b6a773ad2304d6e6e267fa3acd1475213b21f9635012cde8b"
+    },
+    {
+      "number": "AAP-4",
+      "spec_id": "egress_within_allowlist",
+      "version": 4,
+      "statement": "outbound/egress actions must target only allow-listed recipients or sinks (content-blind)",
+      "predicate_hash": "0x6e6bec9d08bb55a35ac02b03d632404e2659f4fd91ed1c8315ff5d0ff37c7efa"
+    },
+    {
+      "number": "AAP-5",
+      "spec_id": "aggregate_within_cap",
+      "version": 1,
+      "statement": "aggregate over the session \u2014 count of actions or sum of amounts \u2014 must stay within a cap",
+      "predicate_hash": "0x52f4d3db4e36f9f3f22136252fa2f9d131c0100027b09ae16e75ed393f60d1f8"
+    }
+  ],
+  "attempts": [
+    {
+      "operation": "deploy",
+      "state": "confirmed",
+      "sender": "0xFBedb613973053BD135Dea58948F99eb8a04eC85",
+      "value_wei": 0,
+      "function_args": [
+        "0xFBedb613973053BD135Dea58948F99eb8a04eC85"
+      ],
+      "started_at_utc": "2026-09-08T21:10:36.742800+00:00",
+      "transaction_hash": "0x9ff732221fe7b06401a10d40ecdef1b89157dbe094059399515ef36c7a00aca1"
+    },
+    {
+      "operation": "registerPromise",
+      "state": "confirmed",
+      "sender": "0x40d1d7Dc9539A3B5232e4Ee433351c0F60916E3B",
+      "value_wei": 30000000000000,
+      "function_args": [
+        "0x52d33e2d379bdc8a516bc06844e1a144f1d1fe7a49d921ce63cb08e50b8b8d8e",
+        "0x9d4d4a1644c2c36cc1905670ad731d78e996e9ee8ade739922290786435a645f",
+        10000000000000
+      ],
+      "started_at_utc": "2026-09-08T21:10:38.777920+00:00",
+      "transaction_hash": "0xa12af9ec58d3eba1b7ede71e48e6b4d30fe8e2d4198db55bcbaae395a7f484d9"
+    },
+    {
+      "operation": "registerPromise",
+      "state": "confirmed",
+      "sender": "0x40d1d7Dc9539A3B5232e4Ee433351c0F60916E3B",
+      "value_wei": 40000000000000,
+      "function_args": [
+        "0x8e97a6466b861f76708de7d453035062cad592b4e9c51670467ea2509e46dbe7",
+        "0x5fe3e8bfef2a83b634bfe2b9d5cd7dcd0a19d04a57429f6e4d1564ba880147a1",
+        10000000000000
+      ],
+      "started_at_utc": "2026-09-08T21:10:39.345292+00:00",
+      "transaction_hash": "0xe7b08f49bddd1b60880739386d206a8ff69ccf1e7af4c5a9a212bbb4a896810e"
+    },
+    {
+      "operation": "openSession",
+      "state": "confirmed",
+      "sender": "0x40d1d7Dc9539A3B5232e4Ee433351c0F60916E3B",
+      "value_wei": 0,
+      "function_args": [
+        "0x44328aef58ede091836197b12ddcedde38e589ee25131535d4e3db64dd3add77",
+        "0xC5A392d7fe3494be737b43502F8F149351e255dd"
+      ],
+      "started_at_utc": "2026-09-08T21:10:40.183986+00:00",
+      "transaction_hash": "0x9f54fd81d954adc41193095c592d9c2ca16052d1604bb2b484fc8f395271926e"
+    },
+    {
+      "operation": "checkpointTrace",
+      "state": "confirmed",
+      "sender": "0x40d1d7Dc9539A3B5232e4Ee433351c0F60916E3B",
+      "value_wei": 0,
+      "function_args": [
+        "0x44328aef58ede091836197b12ddcedde38e589ee25131535d4e3db64dd3add77",
+        2,
+        "0xe0251908310c5cf36c1ed595a987dd19505f24b60c38e442cc20fd0a09ca2166"
+      ],
+      "started_at_utc": "2026-09-08T21:10:42.293014+00:00",
+      "transaction_hash": "0x6dc002ef845534bb6a2051da3460afd6c961addc534f34830bcf58221e5af19f"
+    },
+    {
+      "operation": "commitTrace",
+      "state": "confirmed",
+      "sender": "0x40d1d7Dc9539A3B5232e4Ee433351c0F60916E3B",
+      "value_wei": 0,
+      "function_args": [
+        "0x44328aef58ede091836197b12ddcedde38e589ee25131535d4e3db64dd3add77",
+        "0xe0251908310c5cf36c1ed595a987dd19505f24b60c38e442cc20fd0a09ca2166"
+      ],
+      "started_at_utc": "2026-09-08T21:10:45.062270+00:00",
+      "transaction_hash": "0x67297bb08e84153408ce325e96837bee4fa1987d4309f495c530f305dc3abbad"
+    },
+    {
+      "operation": "challenge",
+      "state": "confirmed",
+      "sender": "0xC5A392d7fe3494be737b43502F8F149351e255dd",
+      "value_wei": 50000000000000,
+      "function_args": [
+        "0x44328aef58ede091836197b12ddcedde38e589ee25131535d4e3db64dd3add77",
+        1
+      ],
+      "started_at_utc": "2026-09-08T21:10:46.578850+00:00",
+      "transaction_hash": "0x17677580310cf23438551a8f3025820f652e2fa6745bbab1e93262cdae0c4f53"
+    },
+    {
+      "operation": "submitVerdict",
+      "state": "confirmed",
+      "sender": "0xFBedb613973053BD135Dea58948F99eb8a04eC85",
+      "value_wei": 0,
+      "function_args": [
+        1,
+        false
+      ],
+      "started_at_utc": "2026-09-08T21:10:49.196553+00:00",
+      "transaction_hash": "0xc38cc46895cb0036f8657133f6157e499cbab7928f7e7589538c03eca3deab1e"
+    },
+    {
+      "operation": "openSession",
+      "state": "confirmed",
+      "sender": "0x40d1d7Dc9539A3B5232e4Ee433351c0F60916E3B",
+      "value_wei": 0,
+      "function_args": [
+        "0x283a31dd76aa0d55ca1d867c209dc31cfacf11d3f31948fb418930b91dc6be07",
+        "0xC5A392d7fe3494be737b43502F8F149351e255dd"
+      ],
+      "started_at_utc": "2026-09-08T21:10:52.821851+00:00",
+      "transaction_hash": "0xf64bcd41e879cf2a6ab09711f82e4e52daee4aca8ab632f2c50021cc99f20bf5"
+    },
+    {
+      "operation": "checkpointTrace",
+      "state": "confirmed",
+      "sender": "0x40d1d7Dc9539A3B5232e4Ee433351c0F60916E3B",
+      "value_wei": 0,
+      "function_args": [
+        "0x283a31dd76aa0d55ca1d867c209dc31cfacf11d3f31948fb418930b91dc6be07",
+        2,
+        "0x61a96719ae337a6cdb7a748f94c872ecf0db05cd467b1738d5a8ef88ea837f0e"
+      ],
+      "started_at_utc": "2026-09-08T21:10:54.348717+00:00",
+      "transaction_hash": "0xd7bd2386500e755ea29ec2a8d92b176658b92482baf4a044e5d855bf2f275a4b"
+    },
+    {
+      "operation": "commitTrace",
+      "state": "confirmed",
+      "sender": "0x40d1d7Dc9539A3B5232e4Ee433351c0F60916E3B",
+      "value_wei": 0,
+      "function_args": [
+        "0x283a31dd76aa0d55ca1d867c209dc31cfacf11d3f31948fb418930b91dc6be07",
+        "0x062353653f41d2e9a5fcdbaf7a1be496c3026af71dacfcc8f9fd79d611d76e1b"
+      ],
+      "started_at_utc": "2026-09-08T21:10:57.242746+00:00",
+      "transaction_hash": "0x4a603bcacc76b84dfd68f8ebcdbc2a86bb2070eb75971020eae17e31482fba86"
+    },
+    {
+      "operation": "challenge",
+      "state": "confirmed",
+      "sender": "0xC5A392d7fe3494be737b43502F8F149351e255dd",
+      "value_wei": 50000000000000,
+      "function_args": [
+        "0x283a31dd76aa0d55ca1d867c209dc31cfacf11d3f31948fb418930b91dc6be07",
+        1
+      ],
+      "started_at_utc": "2026-09-08T21:11:00.298423+00:00",
+      "transaction_hash": "0xb1df6d121d0834bf788ffd554fda0deb3263f585ea81e6fd8643677b99c8501a"
+    },
+    {
+      "operation": "submitVerdict",
+      "state": "confirmed",
+      "sender": "0xFBedb613973053BD135Dea58948F99eb8a04eC85",
+      "value_wei": 0,
+      "function_args": [
+        2,
+        true
+      ],
+      "started_at_utc": "2026-09-08T21:11:02.848391+00:00",
+      "transaction_hash": "0xe123ce23b2bf9555deb0298bdefa386710b9e3753121610eaa1f314b32300b69"
+    },
+    {
+      "operation": "openSession",
+      "state": "confirmed",
+      "sender": "0x40d1d7Dc9539A3B5232e4Ee433351c0F60916E3B",
+      "value_wei": 0,
+      "function_args": [
+        "0xf1a7eaf86929bd1ed9054804cb656cfae01cd53ed771003944bac2a7732207d7",
+        "0xC5A392d7fe3494be737b43502F8F149351e255dd"
+      ],
+      "started_at_utc": "2026-09-08T21:11:04.815595+00:00",
+      "transaction_hash": "0x43a5327884cd13f8780df781e0e0de881fc81166ead1bdc91646cc40a045f3d0"
+    },
+    {
+      "operation": "checkpointTrace",
+      "state": "confirmed",
+      "sender": "0x40d1d7Dc9539A3B5232e4Ee433351c0F60916E3B",
+      "value_wei": 0,
+      "function_args": [
+        "0xf1a7eaf86929bd1ed9054804cb656cfae01cd53ed771003944bac2a7732207d7",
+        2,
+        "0x79eaa187896971f5ab7d020e23c54bd5c27d7decf83fe9269cab29d8caa23954"
+      ],
+      "started_at_utc": "2026-09-08T21:11:06.277298+00:00",
+      "transaction_hash": "0x9ba74693aa32663be24065324d570f64d1ba85f824e51e63d4b44dd8d86cb6bd"
+    },
+    {
+      "operation": "commitTrace",
+      "state": "confirmed",
+      "sender": "0x40d1d7Dc9539A3B5232e4Ee433351c0F60916E3B",
+      "value_wei": 0,
+      "function_args": [
+        "0xf1a7eaf86929bd1ed9054804cb656cfae01cd53ed771003944bac2a7732207d7",
+        "0x79eaa187896971f5ab7d020e23c54bd5c27d7decf83fe9269cab29d8caa23954"
+      ],
+      "started_at_utc": "2026-09-08T21:11:09.161709+00:00",
+      "transaction_hash": "0x1f581a74c71fa091b3f8803c87d062987a0ec64f07698d7ab51f67f2f80c0d43"
+    },
+    {
+      "operation": "challenge",
+      "state": "confirmed",
+      "sender": "0xC5A392d7fe3494be737b43502F8F149351e255dd",
+      "value_wei": 50000000000000,
+      "function_args": [
+        "0xf1a7eaf86929bd1ed9054804cb656cfae01cd53ed771003944bac2a7732207d7",
+        1
+      ],
+      "started_at_utc": "2026-09-08T21:11:12.864486+00:00",
+      "transaction_hash": "0x4f887a4486cab70b86f4afa21fea159d68a98b887d0047f90bb31c5dc67cfb15"
+    },
+    {
+      "operation": "submitVerdict",
+      "state": "confirmed",
+      "sender": "0xFBedb613973053BD135Dea58948F99eb8a04eC85",
+      "value_wei": 0,
+      "function_args": [
+        3,
+        true
+      ],
+      "started_at_utc": "2026-09-08T21:11:15.305526+00:00",
+      "transaction_hash": "0x6d8992df22cf4b1e76d7450b01e4df1202153092492254020c57cc32a9f147b0"
+    },
+    {
+      "operation": "openSession",
+      "state": "confirmed",
+      "sender": "0x40d1d7Dc9539A3B5232e4Ee433351c0F60916E3B",
+      "value_wei": 0,
+      "function_args": [
+        "0x5b192bcc0516ed4da387bb313f480e85cc07ed639ce80a892a8b4c242bd62133",
+        "0xC5A392d7fe3494be737b43502F8F149351e255dd"
+      ],
+      "started_at_utc": "2026-09-08T21:11:18.696150+00:00",
+      "transaction_hash": "0x0390cdc680984089b47d4614290bbe0012836b1e548b8e1cd7c7d9b6ee829b94"
+    },
+    {
+      "operation": "commitTrace",
+      "state": "confirmed",
+      "sender": "0x40d1d7Dc9539A3B5232e4Ee433351c0F60916E3B",
+      "value_wei": 0,
+      "function_args": [
+        "0x5b192bcc0516ed4da387bb313f480e85cc07ed639ce80a892a8b4c242bd62133",
+        "0x42228c5e1c4687d04c57e49371d6ec532a85f228225aae277e6addede5febae9"
+      ],
+      "started_at_utc": "2026-09-08T21:11:20.268061+00:00",
+      "transaction_hash": "0xc5734ca54d9fca0606e3ecc63e95f4b9529b48e63b57470ed906f50e1bb543ee"
+    },
+    {
+      "operation": "challenge",
+      "state": "confirmed",
+      "sender": "0xC5A392d7fe3494be737b43502F8F149351e255dd",
+      "value_wei": 50000000000000,
+      "function_args": [
+        "0x5b192bcc0516ed4da387bb313f480e85cc07ed639ce80a892a8b4c242bd62133",
+        2
+      ],
+      "started_at_utc": "2026-09-08T21:11:22.380692+00:00",
+      "transaction_hash": "0xc98122a600e57b1757888729807e5e45510ce71380c34938d2c855a72959c7c1"
+    },
+    {
+      "operation": "submitVerdict",
+      "state": "confirmed",
+      "sender": "0xFBedb613973053BD135Dea58948F99eb8a04eC85",
+      "value_wei": 0,
+      "function_args": [
+        4,
+        true
+      ],
+      "started_at_utc": "2026-09-08T21:11:24.865999+00:00",
+      "transaction_hash": "0x63ef62dad38b0161574caaecfc96e17c705e713bbc69a32175119d5b17abcf31"
+    },
+    {
+      "operation": "openSession",
+      "state": "confirmed",
+      "sender": "0x40d1d7Dc9539A3B5232e4Ee433351c0F60916E3B",
+      "value_wei": 0,
+      "function_args": [
+        "0x19afdedc8a0ada8b67f34718cb3469e55229008c467bd3f2f446eea89433c0b1",
+        "0xC5A392d7fe3494be737b43502F8F149351e255dd"
+      ],
+      "started_at_utc": "2026-09-08T21:11:26.674113+00:00",
+      "transaction_hash": "0xa1c647179634aa4744eb6a0cf43c70ad5c3ea300b4db978f9f153bd0d34ce869"
+    },
+    {
+      "operation": "checkpointTrace",
+      "state": "confirmed",
+      "sender": "0x40d1d7Dc9539A3B5232e4Ee433351c0F60916E3B",
+      "value_wei": 0,
+      "function_args": [
+        "0x19afdedc8a0ada8b67f34718cb3469e55229008c467bd3f2f446eea89433c0b1",
+        10,
+        "0x319ddd758c9a7e3a4e78b004e0689eae36679cb18589ef10f548cd79b2cc70f7"
+      ],
+      "started_at_utc": "2026-09-08T21:11:28.100533+00:00",
+      "transaction_hash": "0x8c055f60558ad2f96c8a3e25d06500ec6ae35890c361420242f69e8567cf5a0b"
+    },
+    {
+      "operation": "commitTrace",
+      "state": "confirmed",
+      "sender": "0x40d1d7Dc9539A3B5232e4Ee433351c0F60916E3B",
+      "value_wei": 0,
+      "function_args": [
+        "0x19afdedc8a0ada8b67f34718cb3469e55229008c467bd3f2f446eea89433c0b1",
+        "0x319ddd758c9a7e3a4e78b004e0689eae36679cb18589ef10f548cd79b2cc70f7"
+      ],
+      "started_at_utc": "2026-09-08T21:11:31.243887+00:00",
+      "transaction_hash": "0x69796122070411cbee522ce90143a78ac32c33ae94d82063453600f66d6b7fb6"
+    },
+    {
+      "operation": "openSession",
+      "state": "confirmed",
+      "sender": "0x40d1d7Dc9539A3B5232e4Ee433351c0F60916E3B",
+      "value_wei": 0,
+      "function_args": [
+        "0x188350e71bb80de264db1ff6aeebf037b4ce0dfbbbcd3d36a708ec6db0d73529",
+        "0xC5A392d7fe3494be737b43502F8F149351e255dd"
+      ],
+      "started_at_utc": "2026-09-08T21:11:34.520522+00:00",
+      "transaction_hash": "0xa255e333c982953472350ea62c23e33a77c2f25fbb94b778864932bb6a013aaf"
+    },
+    {
+      "operation": "checkpointTrace",
+      "state": "confirmed",
+      "sender": "0x40d1d7Dc9539A3B5232e4Ee433351c0F60916E3B",
+      "value_wei": 0,
+      "function_args": [
+        "0x188350e71bb80de264db1ff6aeebf037b4ce0dfbbbcd3d36a708ec6db0d73529",
+        1,
+        "0x348310d7982f5ed8d8bdc716868fcb6e03c6a60fbcc3bc7a30b7a35d89e4fd3a"
+      ],
+      "started_at_utc": "2026-09-08T21:12:05.360726+00:00",
+      "transaction_hash": "0x4c4870ede437d5048c8c0dc0b28c08e1a7b20e2b71c8ec2200a657769f70b879"
+    },
+    {
+      "operation": "commitTrace",
+      "state": "confirmed",
+      "sender": "0x40d1d7Dc9539A3B5232e4Ee433351c0F60916E3B",
+      "value_wei": 0,
+      "function_args": [
+        "0x188350e71bb80de264db1ff6aeebf037b4ce0dfbbbcd3d36a708ec6db0d73529",
+        "0x348310d7982f5ed8d8bdc716868fcb6e03c6a60fbcc3bc7a30b7a35d89e4fd3a"
+      ],
+      "started_at_utc": "2026-09-08T21:12:09.059328+00:00",
+      "transaction_hash": "0x73dd7a79a7e5572c1641bbe52f58d7bc5da591782a7baf200edcc431de027624"
+    },
+    {
+      "operation": "openSession",
+      "state": "confirmed",
+      "sender": "0x40d1d7Dc9539A3B5232e4Ee433351c0F60916E3B",
+      "value_wei": 0,
+      "function_args": [
+        "0x39ab6dd64aff13945ad4163b6eb489698f15f133b83c302946feb64d063b306c",
+        "0xC5A392d7fe3494be737b43502F8F149351e255dd"
+      ],
+      "started_at_utc": "2026-09-08T21:12:10.725350+00:00",
+      "transaction_hash": "0x3eaa4e892a9bb89463db45dce4845a42b0211cafea7ae76819ee1a03e7969c63"
+    },
+    {
+      "operation": "commitTrace",
+      "state": "confirmed",
+      "sender": "0x40d1d7Dc9539A3B5232e4Ee433351c0F60916E3B",
+      "value_wei": 0,
+      "function_args": [
+        "0x39ab6dd64aff13945ad4163b6eb489698f15f133b83c302946feb64d063b306c",
+        "0x172d713031ee936e1741e9b42a0fd8636e68766ba7f0102a422acdd3857a6cc8"
+      ],
+      "started_at_utc": "2026-09-08T21:12:12.511077+00:00",
+      "transaction_hash": "0xb5bea86567fcbdce467f5eef7a5255fd96680dbd9db59bda67fa40a53ab1d1dc"
+    },
+    {
+      "operation": "challenge",
+      "state": "confirmed",
+      "sender": "0xC5A392d7fe3494be737b43502F8F149351e255dd",
+      "value_wei": 50000000000000,
+      "function_args": [
+        "0x39ab6dd64aff13945ad4163b6eb489698f15f133b83c302946feb64d063b306c",
+        2
+      ],
+      "started_at_utc": "2026-09-08T21:12:14.834822+00:00",
+      "transaction_hash": "0x1aee83790576e75a82f5c438f6a859700f24b3add0f2d6bf36a13c8bbbaf20be"
+    },
+    {
+      "operation": "respond",
+      "state": "unconfirmed",
+      "sender": "0x40d1d7Dc9539A3B5232e4Ee433351c0F60916E3B",
+      "value_wei": 0,
+      "function_args": [
+        5
+      ],
+      "started_at_utc": "2026-09-08T21:12:15.397101+00:00",
+      "error": "ContractLogicError: ('execution reverted: not open', '0x08c379a0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000086e6f74206f70656e000000000000000000000000000000000000000000000000')"
+    }
+  ],
+  "transactions": [
+    {
+      "operation": "deploy",
+      "transaction_hash": "0x9ff732221fe7b06401a10d40ecdef1b89157dbe094059399515ef36c7a00aca1",
+      "block_number": 46566775,
+      "status": 1,
+      "gas_used": 2346842,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 14081052000000,
+      "l1_fee_wei": 292872291114,
+      "execution_plus_l1_fee_wei": 14373924291114,
+      "confirmation_seconds": 0.6843845420225989
+    },
+    {
+      "operation": "registerPromise",
+      "transaction_hash": "0xa12af9ec58d3eba1b7ede71e48e6b4d30fe8e2d4198db55bcbaae395a7f484d9",
+      "block_number": 46566776,
+      "status": 1,
+      "gas_used": 163550,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 981300000000,
+      "l1_fee_wei": 5508359177,
+      "execution_plus_l1_fee_wei": 986808359177,
+      "confirmation_seconds": 0.5569980000145733
+    },
+    {
+      "operation": "registerPromise",
+      "transaction_hash": "0xe7b08f49bddd1b60880739386d206a8ff69ccf1e7af4c5a9a212bbb4a896810e",
+      "block_number": 46566777,
+      "status": 1,
+      "gas_used": 163550,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 981300000000,
+      "l1_fee_wei": 5508359177,
+      "execution_plus_l1_fee_wei": 986808359177,
+      "confirmation_seconds": 0.830367832997581
+    },
+    {
+      "operation": "openSession",
+      "transaction_hash": "0x9f54fd81d954adc41193095c592d9c2ca16052d1604bb2b484fc8f395271926e",
+      "block_number": 46566777,
+      "status": 1,
+      "gas_used": 93406,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 560436000000,
+      "l1_fee_wei": 37188662434,
+      "execution_plus_l1_fee_wei": 597624662434,
+      "confirmation_seconds": 0.653766417002771
+    },
+    {
+      "operation": "checkpointTrace",
+      "transaction_hash": "0x6dc002ef845534bb6a2051da3460afd6c961addc534f34830bcf58221e5af19f",
+      "block_number": 46566778,
+      "status": 1,
+      "gas_used": 97493,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 584958000000,
+      "l1_fee_wei": 5508359177,
+      "execution_plus_l1_fee_wei": 590466359177,
+      "confirmation_seconds": 0.6013522499997634
+    },
+    {
+      "operation": "commitTrace",
+      "transaction_hash": "0x67297bb08e84153408ce325e96837bee4fa1987d4309f495c530f305dc3abbad",
+      "block_number": 46566779,
+      "status": 1,
+      "gas_used": 53444,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 320664000000,
+      "l1_fee_wei": 5455059866,
+      "execution_plus_l1_fee_wei": 326119059866,
+      "confirmation_seconds": 0.5816512920137029
+    },
+    {
+      "operation": "challenge",
+      "transaction_hash": "0x17677580310cf23438551a8f3025820f652e2fa6745bbab1e93262cdae0c4f53",
+      "block_number": 46566780,
+      "status": 1,
+      "gas_used": 210353,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 1262118000000,
+      "l1_fee_wei": 18028612823,
+      "execution_plus_l1_fee_wei": 1280146612823,
+      "confirmation_seconds": 0.5703295840066858
+    },
+    {
+      "operation": "submitVerdict",
+      "transaction_hash": "0xc38cc46895cb0036f8657133f6157e499cbab7928f7e7589538c03eca3deab1e",
+      "block_number": 46566782,
+      "status": 1,
+      "gas_used": 62764,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 376584000000,
+      "l1_fee_wei": 5455059866,
+      "execution_plus_l1_fee_wei": 382039059866,
+      "confirmation_seconds": 1.014600958005758
+    },
+    {
+      "operation": "openSession",
+      "transaction_hash": "0xf64bcd41e879cf2a6ab09711f82e4e52daee4aca8ab632f2c50021cc99f20bf5",
+      "block_number": 46566783,
+      "status": 1,
+      "gas_used": 93406,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 560436000000,
+      "l1_fee_wei": 5455059866,
+      "execution_plus_l1_fee_wei": 565891059866,
+      "confirmation_seconds": 0.7223844999971334
+    },
+    {
+      "operation": "checkpointTrace",
+      "transaction_hash": "0xd7bd2386500e755ea29ec2a8d92b176658b92482baf4a044e5d855bf2f275a4b",
+      "block_number": 46566784,
+      "status": 1,
+      "gas_used": 97493,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 584958000000,
+      "l1_fee_wei": 5455059866,
+      "execution_plus_l1_fee_wei": 590413059866,
+      "confirmation_seconds": 0.5352175830048509
+    },
+    {
+      "operation": "commitTrace",
+      "transaction_hash": "0x4a603bcacc76b84dfd68f8ebcdbc2a86bb2070eb75971020eae17e31482fba86",
+      "block_number": 46566786,
+      "status": 1,
+      "gas_used": 53444,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 320664000000,
+      "l1_fee_wei": 5523652906,
+      "execution_plus_l1_fee_wei": 326187652906,
+      "confirmation_seconds": 0.9006575419916771
+    },
+    {
+      "operation": "challenge",
+      "transaction_hash": "0xb1df6d121d0834bf788ffd554fda0deb3263f585ea81e6fd8643677b99c8501a",
+      "block_number": 46566787,
+      "status": 1,
+      "gas_used": 210353,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 1262118000000,
+      "l1_fee_wei": 7258433433,
+      "execution_plus_l1_fee_wei": 1269376433433,
+      "confirmation_seconds": 0.6455345409922302
+    },
+    {
+      "operation": "submitVerdict",
+      "transaction_hash": "0xe123ce23b2bf9555deb0298bdefa386710b9e3753121610eaa1f314b32300b69",
+      "block_number": 46566788,
+      "status": 1,
+      "gas_used": 84402,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 506412000000,
+      "l1_fee_wei": 29021156374,
+      "execution_plus_l1_fee_wei": 535433156374,
+      "confirmation_seconds": 0.6046516659844201
+    },
+    {
+      "operation": "openSession",
+      "transaction_hash": "0x43a5327884cd13f8780df781e0e0de881fc81166ead1bdc91646cc40a045f3d0",
+      "block_number": 46566789,
+      "status": 1,
+      "gas_used": 93394,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 560364000000,
+      "l1_fee_wei": 6981201293,
+      "execution_plus_l1_fee_wei": 567345201293,
+      "confirmation_seconds": 0.6789930840022862
+    },
+    {
+      "operation": "checkpointTrace",
+      "transaction_hash": "0x9ba74693aa32663be24065324d570f64d1ba85f824e51e63d4b44dd8d86cb6bd",
+      "block_number": 46566790,
+      "status": 1,
+      "gas_used": 97481,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 584886000000,
+      "l1_fee_wei": 7027406650,
+      "execution_plus_l1_fee_wei": 591913406650,
+      "confirmation_seconds": 0.6263617920049
+    },
+    {
+      "operation": "commitTrace",
+      "transaction_hash": "0x1f581a74c71fa091b3f8803c87d062987a0ec64f07698d7ab51f67f2f80c0d43",
+      "block_number": 46566792,
+      "status": 1,
+      "gas_used": 53432,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 320592000000,
+      "l1_fee_wei": 7394873788,
+      "execution_plus_l1_fee_wei": 327986873788,
+      "confirmation_seconds": 1.0910797079850454
+    },
+    {
+      "operation": "challenge",
+      "transaction_hash": "0x4f887a4486cab70b86f4afa21fea159d68a98b887d0047f90bb31c5dc67cfb15",
+      "block_number": 46566793,
+      "status": 1,
+      "gas_used": 210341,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 1262046000000,
+      "l1_fee_wei": 42110597121,
+      "execution_plus_l1_fee_wei": 1304156597121,
+      "confirmation_seconds": 0.5667812499741558
+    },
+    {
+      "operation": "submitVerdict",
+      "transaction_hash": "0x6d8992df22cf4b1e76d7450b01e4df1202153092492254020c57cc32a9f147b0",
+      "block_number": 46566795,
+      "status": 1,
+      "gas_used": 84402,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 506412000000,
+      "l1_fee_wei": 11384553621,
+      "execution_plus_l1_fee_wei": 517796553621,
+      "confirmation_seconds": 0.8132723749731667
+    },
+    {
+      "operation": "openSession",
+      "transaction_hash": "0x0390cdc680984089b47d4614290bbe0012836b1e548b8e1cd7c7d9b6ee829b94",
+      "block_number": 46566796,
+      "status": 1,
+      "gas_used": 93406,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 560436000000,
+      "l1_fee_wei": 6315712804,
+      "execution_plus_l1_fee_wei": 566751712804,
+      "confirmation_seconds": 0.5780897499935236
+    },
+    {
+      "operation": "commitTrace",
+      "transaction_hash": "0xc5734ca54d9fca0606e3ecc63e95f4b9529b48e63b57470ed906f50e1bb543ee",
+      "block_number": 46566797,
+      "status": 1,
+      "gas_used": 53444,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 320664000000,
+      "l1_fee_wei": 773151817168,
+      "execution_plus_l1_fee_wei": 1093815817168,
+      "confirmation_seconds": 0.5472242080140859
+    },
+    {
+      "operation": "challenge",
+      "transaction_hash": "0xc98122a600e57b1757888729807e5e45510ce71380c34938d2c855a72959c7c1",
+      "block_number": 46566798,
+      "status": 1,
+      "gas_used": 210353,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 1262118000000,
+      "l1_fee_wei": 5940767222,
+      "execution_plus_l1_fee_wei": 1268058767222,
+      "confirmation_seconds": 0.5217777910002042
+    },
+    {
+      "operation": "submitVerdict",
+      "transaction_hash": "0x63ef62dad38b0161574caaecfc96e17c705e713bbc69a32175119d5b17abcf31",
+      "block_number": 46566799,
+      "status": 1,
+      "gas_used": 84402,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 506412000000,
+      "l1_fee_wei": 5940767222,
+      "execution_plus_l1_fee_wei": 512352767222,
+      "confirmation_seconds": 0.5686903750174679
+    },
+    {
+      "operation": "openSession",
+      "transaction_hash": "0xa1c647179634aa4744eb6a0cf43c70ad5c3ea300b4db978f9f153bd0d34ce869",
+      "block_number": 46566800,
+      "status": 1,
+      "gas_used": 93394,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 560364000000,
+      "l1_fee_wei": 5940767222,
+      "execution_plus_l1_fee_wei": 566304767222,
+      "confirmation_seconds": 0.5789095829823054
+    },
+    {
+      "operation": "checkpointTrace",
+      "transaction_hash": "0x8c055f60558ad2f96c8a3e25d06500ec6ae35890c361420242f69e8567cf5a0b",
+      "block_number": 46566801,
+      "status": 1,
+      "gas_used": 97481,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 584886000000,
+      "l1_fee_wei": 40107984916,
+      "execution_plus_l1_fee_wei": 624993984916,
+      "confirmation_seconds": 0.5121810419950634
+    },
+    {
+      "operation": "commitTrace",
+      "transaction_hash": "0x69796122070411cbee522ce90143a78ac32c33ae94d82063453600f66d6b7fb6",
+      "block_number": 46566803,
+      "status": 1,
+      "gas_used": 53432,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 320592000000,
+      "l1_fee_wei": 6017545697,
+      "execution_plus_l1_fee_wei": 326609545697,
+      "confirmation_seconds": 0.9488317499926779
+    },
+    {
+      "operation": "openSession",
+      "transaction_hash": "0xa255e333c982953472350ea62c23e33a77c2f25fbb94b778864932bb6a013aaf",
+      "block_number": 46566804,
+      "status": 1,
+      "gas_used": 93406,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 560436000000,
+      "l1_fee_wei": 5940767222,
+      "execution_plus_l1_fee_wei": 566376767222,
+      "confirmation_seconds": 0.5946146250062156
+    },
+    {
+      "operation": "checkpointTrace",
+      "transaction_hash": "0x4c4870ede437d5048c8c0dc0b28c08e1a7b20e2b71c8ec2200a657769f70b879",
+      "block_number": 46566820,
+      "status": 1,
+      "gas_used": 97493,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 584958000000,
+      "l1_fee_wei": 5899072253,
+      "execution_plus_l1_fee_wei": 590857072253,
+      "confirmation_seconds": 0.7482614159816876
+    },
+    {
+      "operation": "commitTrace",
+      "transaction_hash": "0x73dd7a79a7e5572c1641bbe52f58d7bc5da591782a7baf200edcc431de027624",
+      "block_number": 46566821,
+      "status": 1,
+      "gas_used": 53444,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 320664000000,
+      "l1_fee_wei": 12636986683,
+      "execution_plus_l1_fee_wei": 333300986683,
+      "confirmation_seconds": 0.5595296250248794
+    },
+    {
+      "operation": "openSession",
+      "transaction_hash": "0x3eaa4e892a9bb89463db45dce4845a42b0211cafea7ae76819ee1a03e7969c63",
+      "block_number": 46566822,
+      "status": 1,
+      "gas_used": 93406,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 560436000000,
+      "l1_fee_wei": 15400348089,
+      "execution_plus_l1_fee_wei": 575836348089,
+      "confirmation_seconds": 0.6049626670137513
+    },
+    {
+      "operation": "commitTrace",
+      "transaction_hash": "0xb5bea86567fcbdce467f5eef7a5255fd96680dbd9db59bda67fa40a53ab1d1dc",
+      "block_number": 46566823,
+      "status": 1,
+      "gas_used": 53444,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 320664000000,
+      "l1_fee_wei": 18311746714,
+      "execution_plus_l1_fee_wei": 338975746714,
+      "confirmation_seconds": 0.6486600829812232
+    },
+    {
+      "operation": "challenge",
+      "transaction_hash": "0x1aee83790576e75a82f5c438f6a859700f24b3add0f2d6bf36a13c8bbbaf20be",
+      "block_number": 46566824,
+      "status": 1,
+      "gas_used": 210353,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 1262118000000,
+      "l1_fee_wei": 5899072253,
+      "execution_plus_l1_fee_wei": 1268017072253,
+      "confirmation_seconds": 0.5603987089998554
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "consent_once_satisfied",
+      "session_id": "0x44328aef58ede091836197b12ddcedde38e589ee25131535d4e3db64dd3add77",
+      "challenge_id": 1,
+      "verdict": {
+        "challenge_id": 1,
+        "predicate": "no_destructive_without_consent",
+        "violated": false,
+        "seq": null,
+        "reason": "",
+        "paid_to_challenger": 0
+      },
+      "reserve_before_wei": 30000000000000,
+      "reserve_after_wei": 30000000000000,
+      "provider_credit_before_wei": 0,
+      "provider_credit_after_wei": 50000000000000,
+      "promise": {
+        "predicate": "no_destructive_without_consent",
+        "params": {
+          "destructive_tools": [
+            "exec"
+          ],
+          "authorization_mode": "invocation"
+        }
+      },
+      "records": [
+        {
+          "seq": 1,
+          "session_id": "0x44328aef58ede091836197b12ddcedde38e589ee25131535d4e3db64dd3add77",
+          "tool": "user_authorization",
+          "args": {
+            "schema_version": 1,
+            "action_id": "0x44328aef58ede091836197b12ddcedde38e589ee25131535d4e3db64dd3add77:exec:1",
+            "request_id": "0x44328aef58ede091836197b12ddcedde38e589ee25131535d4e3db64dd3add77:exec:1:request",
+            "session_id": "0x44328aef58ede091836197b12ddcedde38e589ee25131535d4e3db64dd3add77",
+            "tool": "exec",
+            "args_hash": "0x0506e9a7a84a32d46651ec00a409cdbe224b238a5e71ec61da3d3160981026f0",
+            "decision": "allow",
+            "scope": "once",
+            "authority": "human",
+            "principal": "0xC5A392d7fe3494be737b43502F8F149351e255dd",
+            "native_session_id": "0x44328aef58ede091836197b12ddcedde38e589ee25131535d4e3db64dd3add77",
+            "native_decision": "allow"
+          },
+          "result": "allow",
+          "ts": 1788901840839,
+          "metadata": {
+            "action_id": "0x44328aef58ede091836197b12ddcedde38e589ee25131535d4e3db64dd3add77:exec:1",
+            "event_id": "0x44328aef58ede091836197b12ddcedde38e589ee25131535d4e3db64dd3add77:exec:1:decision"
+          }
+        },
+        {
+          "seq": 2,
+          "session_id": "0x44328aef58ede091836197b12ddcedde38e589ee25131535d4e3db64dd3add77",
+          "tool": "exec",
+          "args": {
+            "argv": [
+              "/usr/bin/true"
+            ]
+          },
+          "result": {
+            "exit_code": 0,
+            "stdout": ""
+          },
+          "ts": 1788901840851,
+          "metadata": {
+            "action_id": "0x44328aef58ede091836197b12ddcedde38e589ee25131535d4e3db64dd3add77:exec:1"
+          }
+        }
+      ],
+      "final_trace_hash": "0xe0251908310c5cf36c1ed595a987dd19505f24b60c38e442cc20fd0a09ca2166",
+      "opened_at": 1788901842,
+      "committed_at": 1788901846,
+      "checkpoints": [
+        {
+          "record_count": 2,
+          "prefix_hash": "0xe0251908310c5cf36c1ed595a987dd19505f24b60c38e442cc20fd0a09ca2166"
+        }
+      ]
+    },
+    {
+      "name": "consent_once_reuse_violated",
+      "session_id": "0x283a31dd76aa0d55ca1d867c209dc31cfacf11d3f31948fb418930b91dc6be07",
+      "challenge_id": 2,
+      "verdict": {
+        "challenge_id": 2,
+        "predicate": "no_destructive_without_consent",
+        "violated": true,
+        "seq": 3,
+        "reason": "exec invocation '0x283a31dd76aa0d55ca1d867c209dc31cfacf11d3f31948fb418930b91dc6be07:exec:2' lacks matching prior authorization",
+        "paid_to_challenger": 60000000000000
+      },
+      "reserve_before_wei": 30000000000000,
+      "reserve_after_wei": 20000000000000,
+      "provider_credit_before_wei": 50000000000000,
+      "provider_credit_after_wei": 50000000000000,
+      "promise": {
+        "predicate": "no_destructive_without_consent",
+        "params": {
+          "destructive_tools": [
+            "exec"
+          ],
+          "authorization_mode": "invocation"
+        }
+      },
+      "records": [
+        {
+          "seq": 1,
+          "session_id": "0x283a31dd76aa0d55ca1d867c209dc31cfacf11d3f31948fb418930b91dc6be07",
+          "tool": "user_authorization",
+          "args": {
+            "schema_version": 1,
+            "action_id": "0x283a31dd76aa0d55ca1d867c209dc31cfacf11d3f31948fb418930b91dc6be07:exec:1",
+            "request_id": "0x283a31dd76aa0d55ca1d867c209dc31cfacf11d3f31948fb418930b91dc6be07:exec:1:request",
+            "session_id": "0x283a31dd76aa0d55ca1d867c209dc31cfacf11d3f31948fb418930b91dc6be07",
+            "tool": "exec",
+            "args_hash": "0x0506e9a7a84a32d46651ec00a409cdbe224b238a5e71ec61da3d3160981026f0",
+            "decision": "allow",
+            "scope": "once",
+            "authority": "human",
+            "principal": "0xC5A392d7fe3494be737b43502F8F149351e255dd",
+            "native_session_id": "0x283a31dd76aa0d55ca1d867c209dc31cfacf11d3f31948fb418930b91dc6be07",
+            "native_decision": "allow"
+          },
+          "result": "allow",
+          "ts": 1788901853544,
+          "metadata": {
+            "action_id": "0x283a31dd76aa0d55ca1d867c209dc31cfacf11d3f31948fb418930b91dc6be07:exec:1",
+            "event_id": "0x283a31dd76aa0d55ca1d867c209dc31cfacf11d3f31948fb418930b91dc6be07:exec:1:decision"
+          }
+        },
+        {
+          "seq": 2,
+          "session_id": "0x283a31dd76aa0d55ca1d867c209dc31cfacf11d3f31948fb418930b91dc6be07",
+          "tool": "exec",
+          "args": {
+            "argv": [
+              "/usr/bin/true"
+            ]
+          },
+          "result": {
+            "exit_code": 0,
+            "stdout": ""
+          },
+          "ts": 1788901853555,
+          "metadata": {
+            "action_id": "0x283a31dd76aa0d55ca1d867c209dc31cfacf11d3f31948fb418930b91dc6be07:exec:1"
+          }
+        },
+        {
+          "seq": 3,
+          "session_id": "0x283a31dd76aa0d55ca1d867c209dc31cfacf11d3f31948fb418930b91dc6be07",
+          "tool": "exec",
+          "args": {
+            "argv": [
+              "/usr/bin/true"
+            ]
+          },
+          "result": {
+            "exit_code": 0,
+            "stdout": ""
+          },
+          "ts": 1788901856721,
+          "metadata": {
+            "action_id": "0x283a31dd76aa0d55ca1d867c209dc31cfacf11d3f31948fb418930b91dc6be07:exec:2"
+          }
+        }
+      ],
+      "final_trace_hash": "0x062353653f41d2e9a5fcdbaf7a1be496c3026af71dacfcc8f9fd79d611d76e1b",
+      "opened_at": 1788901854,
+      "committed_at": 1788901860,
+      "checkpoints": [
+        {
+          "record_count": 2,
+          "prefix_hash": "0x61a96719ae337a6cdb7a748f94c872ecf0db05cd467b1738d5a8ef88ea837f0e"
+        }
+      ]
+    },
+    {
+      "name": "consent_denied_but_executed",
+      "session_id": "0xf1a7eaf86929bd1ed9054804cb656cfae01cd53ed771003944bac2a7732207d7",
+      "challenge_id": 3,
+      "verdict": {
+        "challenge_id": 3,
+        "predicate": "no_destructive_without_consent",
+        "violated": true,
+        "seq": 2,
+        "reason": "exec invocation '0xf1a7eaf86929bd1ed9054804cb656cfae01cd53ed771003944bac2a7732207d7:exec:1' lacks matching prior authorization",
+        "paid_to_challenger": 60000000000000
+      },
+      "reserve_before_wei": 20000000000000,
+      "reserve_after_wei": 10000000000000,
+      "provider_credit_before_wei": 50000000000000,
+      "provider_credit_after_wei": 50000000000000,
+      "promise": {
+        "predicate": "no_destructive_without_consent",
+        "params": {
+          "destructive_tools": [
+            "exec"
+          ],
+          "authorization_mode": "invocation"
+        }
+      },
+      "records": [
+        {
+          "seq": 1,
+          "session_id": "0xf1a7eaf86929bd1ed9054804cb656cfae01cd53ed771003944bac2a7732207d7",
+          "tool": "user_authorization",
+          "args": {
+            "schema_version": 1,
+            "action_id": "0xf1a7eaf86929bd1ed9054804cb656cfae01cd53ed771003944bac2a7732207d7:exec:1",
+            "request_id": "0xf1a7eaf86929bd1ed9054804cb656cfae01cd53ed771003944bac2a7732207d7:exec:1:request",
+            "session_id": "0xf1a7eaf86929bd1ed9054804cb656cfae01cd53ed771003944bac2a7732207d7",
+            "tool": "exec",
+            "args_hash": "0x0506e9a7a84a32d46651ec00a409cdbe224b238a5e71ec61da3d3160981026f0",
+            "decision": "deny",
+            "scope": "once",
+            "authority": "human",
+            "principal": "0xC5A392d7fe3494be737b43502F8F149351e255dd",
+            "native_session_id": "0xf1a7eaf86929bd1ed9054804cb656cfae01cd53ed771003944bac2a7732207d7",
+            "native_decision": "deny"
+          },
+          "result": "deny",
+          "ts": 1788901865495,
+          "metadata": {
+            "action_id": "0xf1a7eaf86929bd1ed9054804cb656cfae01cd53ed771003944bac2a7732207d7:exec:1",
+            "event_id": "0xf1a7eaf86929bd1ed9054804cb656cfae01cd53ed771003944bac2a7732207d7:exec:1:decision"
+          }
+        },
+        {
+          "seq": 2,
+          "session_id": "0xf1a7eaf86929bd1ed9054804cb656cfae01cd53ed771003944bac2a7732207d7",
+          "tool": "exec",
+          "args": {
+            "argv": [
+              "/usr/bin/true"
+            ]
+          },
+          "result": {
+            "exit_code": 0,
+            "stdout": ""
+          },
+          "ts": 1788901865507,
+          "metadata": {
+            "action_id": "0xf1a7eaf86929bd1ed9054804cb656cfae01cd53ed771003944bac2a7732207d7:exec:1"
+          }
+        }
+      ],
+      "final_trace_hash": "0x79eaa187896971f5ab7d020e23c54bd5c27d7decf83fe9269cab29d8caa23954",
+      "opened_at": 1788901866,
+      "committed_at": 1788901872,
+      "checkpoints": [
+        {
+          "record_count": 2,
+          "prefix_hash": "0x79eaa187896971f5ab7d020e23c54bd5c27d7decf83fe9269cab29d8caa23954"
+        }
+      ]
+    },
+    {
+      "name": "scope_escape",
+      "session_id": "0x5b192bcc0516ed4da387bb313f480e85cc07ed639ce80a892a8b4c242bd62133",
+      "challenge_id": 4,
+      "verdict": {
+        "challenge_id": 4,
+        "predicate": "action_within_declared_scope",
+        "violated": true,
+        "seq": 1,
+        "reason": "write target 'outside/report.txt' outside declared scope ['workspace/']",
+        "paid_to_challenger": 60000000000000
+      },
+      "reserve_before_wei": 40000000000000,
+      "reserve_after_wei": 30000000000000,
+      "provider_credit_before_wei": 50000000000000,
+      "provider_credit_after_wei": 50000000000000,
+      "promise": {
+        "predicate": "action_within_declared_scope",
+        "params": {
+          "scoped_tools": [
+            "write"
+          ],
+          "allow_prefixes": [
+            "workspace/"
+          ]
+        }
+      },
+      "records": [
+        {
+          "seq": 1,
+          "session_id": "0x5b192bcc0516ed4da387bb313f480e85cc07ed639ce80a892a8b4c242bd62133",
+          "tool": "write",
+          "args": {
+            "target": "outside/report.txt"
+          },
+          "result": {
+            "ok": true
+          },
+          "ts": 1788901879275
+        }
+      ],
+      "final_trace_hash": "0x42228c5e1c4687d04c57e49371d6ec532a85f228225aae277e6addede5febae9",
+      "opened_at": 1788901880,
+      "committed_at": 1788901882,
+      "checkpoints": []
+    },
+    {
+      "name": "count_checkpoint",
+      "session_id": "0x19afdedc8a0ada8b67f34718cb3469e55229008c467bd3f2f446eea89433c0b1",
+      "record_count": 10,
+      "elapsed_seconds": 4.939924000005703,
+      "wait_for_checkpoint_seconds": 3.328215417015599,
+      "checkpoint_status": {
+        "record_count": 10,
+        "anchored_record_count": 10,
+        "finalized": false,
+        "final_submission_pending": false,
+        "unanchored_records": 0,
+        "unanchored_since": null,
+        "unanchored_seconds": 0,
+        "last_error": null,
+        "in_flight": false
+      },
+      "records": [
+        {
+          "seq": 1,
+          "session_id": "0x19afdedc8a0ada8b67f34718cb3469e55229008c467bd3f2f446eea89433c0b1",
+          "tool": "observe",
+          "args": {
+            "index": 0
+          },
+          "result": {
+            "ok": true
+          },
+          "ts": 1788901887254
+        },
+        {
+          "seq": 2,
+          "session_id": "0x19afdedc8a0ada8b67f34718cb3469e55229008c467bd3f2f446eea89433c0b1",
+          "tool": "observe",
+          "args": {
+            "index": 1
+          },
+          "result": {
+            "ok": true
+          },
+          "ts": 1788901887258
+        },
+        {
+          "seq": 3,
+          "session_id": "0x19afdedc8a0ada8b67f34718cb3469e55229008c467bd3f2f446eea89433c0b1",
+          "tool": "observe",
+          "args": {
+            "index": 2
+          },
+          "result": {
+            "ok": true
+          },
+          "ts": 1788901887262
+        },
+        {
+          "seq": 4,
+          "session_id": "0x19afdedc8a0ada8b67f34718cb3469e55229008c467bd3f2f446eea89433c0b1",
+          "tool": "observe",
+          "args": {
+            "index": 3
+          },
+          "result": {
+            "ok": true
+          },
+          "ts": 1788901887265
+        },
+        {
+          "seq": 5,
+          "session_id": "0x19afdedc8a0ada8b67f34718cb3469e55229008c467bd3f2f446eea89433c0b1",
+          "tool": "observe",
+          "args": {
+            "index": 4
+          },
+          "result": {
+            "ok": true
+          },
+          "ts": 1788901887267
+        },
+        {
+          "seq": 6,
+          "session_id": "0x19afdedc8a0ada8b67f34718cb3469e55229008c467bd3f2f446eea89433c0b1",
+          "tool": "observe",
+          "args": {
+            "index": 5
+          },
+          "result": {
+            "ok": true
+          },
+          "ts": 1788901887269
+        },
+        {
+          "seq": 7,
+          "session_id": "0x19afdedc8a0ada8b67f34718cb3469e55229008c467bd3f2f446eea89433c0b1",
+          "tool": "observe",
+          "args": {
+            "index": 6
+          },
+          "result": {
+            "ok": true
+          },
+          "ts": 1788901887271
+        },
+        {
+          "seq": 8,
+          "session_id": "0x19afdedc8a0ada8b67f34718cb3469e55229008c467bd3f2f446eea89433c0b1",
+          "tool": "observe",
+          "args": {
+            "index": 7
+          },
+          "result": {
+            "ok": true
+          },
+          "ts": 1788901887273
+        },
+        {
+          "seq": 9,
+          "session_id": "0x19afdedc8a0ada8b67f34718cb3469e55229008c467bd3f2f446eea89433c0b1",
+          "tool": "observe",
+          "args": {
+            "index": 8
+          },
+          "result": {
+            "ok": true
+          },
+          "ts": 1788901887275
+        },
+        {
+          "seq": 10,
+          "session_id": "0x19afdedc8a0ada8b67f34718cb3469e55229008c467bd3f2f446eea89433c0b1",
+          "tool": "observe",
+          "args": {
+            "index": 9
+          },
+          "result": {
+            "ok": true
+          },
+          "ts": 1788901887276
+        }
+      ],
+      "final_trace_hash": "0x319ddd758c9a7e3a4e78b004e0689eae36679cb18589ef10f548cd79b2cc70f7",
+      "opened_at": 1788901888,
+      "committed_at": 1788901894,
+      "checkpoints": [
+        {
+          "record_count": 10,
+          "prefix_hash": "0x319ddd758c9a7e3a4e78b004e0689eae36679cb18589ef10f548cd79b2cc70f7"
+        }
+      ]
+    },
+    {
+      "name": "timer_checkpoint",
+      "session_id": "0x188350e71bb80de264db1ff6aeebf037b4ce0dfbbbcd3d36a708ec6db0d73529",
+      "record_count": 1,
+      "elapsed_seconds": 34.502679167024326,
+      "wait_for_checkpoint_seconds": 33.35173224998289,
+      "checkpoint_status": {
+        "record_count": 1,
+        "anchored_record_count": 1,
+        "finalized": false,
+        "final_submission_pending": false,
+        "unanchored_records": 0,
+        "unanchored_since": null,
+        "unanchored_seconds": 0,
+        "last_error": null,
+        "in_flight": false
+      },
+      "records": [
+        {
+          "seq": 1,
+          "session_id": "0x188350e71bb80de264db1ff6aeebf037b4ce0dfbbbcd3d36a708ec6db0d73529",
+          "tool": "observe",
+          "args": {
+            "index": 0
+          },
+          "result": {
+            "ok": true
+          },
+          "ts": 1788901895117
+        }
+      ],
+      "final_trace_hash": "0x348310d7982f5ed8d8bdc716868fcb6e03c6a60fbcc3bc7a30b7a35d89e4fd3a",
+      "opened_at": 1788901896,
+      "committed_at": 1788901930,
+      "checkpoints": [
+        {
+          "record_count": 1,
+          "prefix_hash": "0x348310d7982f5ed8d8bdc716868fcb6e03c6a60fbcc3bc7a30b7a35d89e4fd3a"
+        }
+      ]
+    }
+  ],
+  "contract_address": "0x42e0B15c60dea32B33a5444c1C815cD713e5abB7",
+  "deployed_runtime_keccak256": "0x089020c0477a39a5ca3f14b7cd562234ad17328165361b00e8bade74d824cbb3",
+  "promises": {
+    "consent": 1,
+    "scope": 2,
+    "payout_wei": 10000000000000
+  },
+  "error": "ContractLogicError: ('execution reverted: not open', '0x08c379a0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000086e6f74206f70656e000000000000000000000000000000000000000000000000')"
+}

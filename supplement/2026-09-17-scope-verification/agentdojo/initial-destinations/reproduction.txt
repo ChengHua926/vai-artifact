@@ -1,0 +1,12 @@
+Worktree: /workspace/.audit-worktrees/agentdojo-recipient-review
+Branch: eval-agentdojo-recipient-review
+No commits or pushes. Original shared SDK, frozen ledgers, labels and parameters unchanged.
+
+Passing tests (37 passed):
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/workspace/.audit-worktrees/agentdojo-recipient-review /workspace/vai/eval/.venv/bin/python -m pytest -q eval/agentdojo/tests/test_allowlist_sensitivity.py eval/agentdojo/tests/test_outbound_review.py eval/agentdojo/tests/test_agentdojo_runtime.py eval/agentdojo/tests/test_agentdojo_matching.py eval/agentdojo/tests/test_agentdojo_contracts.py eval/agentdojo/tests/test_agentdojo_native_edges.py
+
+Full replay (exit 0, 2162 cases):
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/workspace/.audit-worktrees/agentdojo-recipient-review /workspace/vai/eval/.venv/bin/python -m eval.agentdojo.allowlist_sensitivity --reference-root /workspace/vai/eval/paper_main_v1 --baseline-root /workspace/.local/agentdojo-outbound-v2-20260916 --audit-root /workspace/.local/agentdojo-reason-audit-20260916 --output /workspace/.local/agentdojo-initial-destinations-sensitivity-20260917 --policy initial-destinations --calendar-baseline-root /workspace/.local/agentdojo-allowlist-sensitivity-20260917
+
+Use a new empty output directory to reproduce; preserved output is never overwritten by the CLI.
+Analysis script is preserved in source_snapshot/agentdojo_initial_policy_analysis.py. It only inspects already-reviewed literal recipients to distinguish structured, text-only and absent initial presence. This diagnostic text search never supplies policy parameters.

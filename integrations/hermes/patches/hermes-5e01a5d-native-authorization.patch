@@ -1,0 +1,509 @@
+diff --git a/acp_adapter/edit_approval.py b/acp_adapter/edit_approval.py
+index cbe7b699a5..1bc41bf33d 100644
+--- a/acp_adapter/edit_approval.py
++++ b/acp_adapter/edit_approval.py
+@@ -11,6 +11,7 @@ import asyncio
+ import json
+ import logging
+ import tempfile
++import uuid
+ from concurrent.futures import TimeoutError as FutureTimeout
+ from contextvars import ContextVar, Token
+ from dataclasses import dataclass
+@@ -193,7 +194,7 @@ def maybe_require_edit_approval(tool_name: str, arguments: dict[str, Any]) -> st
+         proposal = build_edit_proposal(tool_name, arguments)
+     except Exception as exc:
+         logger.warning("Could not build ACP edit approval proposal for %s: %s", tool_name, exc)
+-        return json.dumps({"error": f"Edit approval denied: could not prepare diff ({exc})"}, ensure_ascii=False)
++        return json.dumps({"error": f"Edit approval denied: could not prepare diff ({exc})", "executed": False}, ensure_ascii=False)
+ 
+     if proposal is None:
+         return None
+@@ -206,7 +207,7 @@ def maybe_require_edit_approval(tool_name: str, arguments: dict[str, Any]) -> st
+ 
+     if approved:
+         return None
+-    return json.dumps({"error": "Edit approval denied by ACP client; file was not modified."}, ensure_ascii=False)
++    return json.dumps({"error": "Edit approval denied by ACP client; file was not modified.", "executed": False}, ensure_ascii=False)
+ 
+ 
+ def build_acp_edit_tool_call(proposal: EditProposal):
+@@ -243,12 +244,33 @@ def make_acp_edit_approval_requester(
+     def _requester(proposal: EditProposal) -> bool:
+         from acp.schema import PermissionOption
+         from agent.async_utils import safe_schedule_threadsafe
++        from tools.approval import _fire_approval_hook
++
++        request_id = uuid.uuid4().hex
++        context = dict(
++            request_id=request_id, tool_name=proposal.tool_name,
++            arguments=proposal.arguments, session_key=session_id,
++            native_session_id=session_id, surface="acp_edit",
++        )
++
++        def observed(allowed: bool, raw: str, **details) -> bool:
++            _fire_approval_hook(
++                "post_approval_response", **context,
++                choice="once" if allowed else "deny", native_decision=raw,
++                authority="human", **details,
++            )
++            return allowed
+ 
+         if auto_approve_getter is not None:
+             try:
+                 policy, cwd = auto_approve_getter()
+                 if should_auto_approve_edit(proposal, policy, cwd):
+                     logger.info("Auto-approved ACP edit under policy %s: %s", policy, proposal.path)
++                    _fire_approval_hook(
++                        "approval_policy_applied", **context, choice="session",
++                        native_decision=policy, scope="session", authority="policy",
++                        policy_id=f"hermes:acp:{session_id}:{policy}:{cwd or ''}",
++                    )
+                     return True
+             except Exception:
+                 logger.debug("ACP edit auto-approval policy check failed", exc_info=True)
+@@ -258,6 +280,8 @@ def make_acp_edit_approval_requester(
+             PermissionOption(option_id="deny", kind="reject_once", name="Deny"),
+         ]
+         tool_call = build_acp_edit_tool_call(proposal)
++        context["native_request_id"] = tool_call.tool_call_id
++        _fire_approval_hook("pre_approval_request", **context)
+         coro = request_permission_fn(
+             session_id=session_id,
+             tool_call=tool_call,
+@@ -270,17 +294,22 @@ def make_acp_edit_approval_requester(
+             log_message="Edit approval request: failed to schedule on loop",
+         )
+         if future is None:
+-            return False
++            return observed(False, "schedule_failed")
+         try:
+             response = future.result(timeout=timeout)
+-        except (FutureTimeout, Exception) as exc:
++        except FutureTimeout as exc:
+             future.cancel()
+             logger.warning("Edit approval request timed out or failed: %s", exc)
+-            return False
++            return observed(False, "timeout")
++        except Exception as exc:
++            future.cancel()
++            logger.warning("Edit approval request failed: %s", exc)
++            return observed(False, "request_failed")
+         outcome = getattr(response, "outcome", None)
+-        return (
++        allowed = (
+             getattr(outcome, "outcome", None) == "selected"
+             and getattr(outcome, "option_id", None) == "allow_once"
+         )
++        return observed(allowed, getattr(outcome, "option_id", None) or getattr(outcome, "outcome", "no_response"))
+ 
+     return _requester
+diff --git a/acp_adapter/permissions.py b/acp_adapter/permissions.py
+index 29bd101edd..5df73d80c6 100644
+--- a/acp_adapter/permissions.py
++++ b/acp_adapter/permissions.py
+@@ -132,10 +132,16 @@ def make_approval_callback(
+         **_: object,
+     ) -> str:
+         from agent.async_utils import safe_schedule_threadsafe
++        from tools.approval import NativeApprovalChoice
+ 
+         options = _build_permission_options(allow_permanent=allow_permanent)
+ 
+         tool_call = _build_permission_tool_call(command, description)
++        def observed(choice: str, raw: str) -> str:
++            return NativeApprovalChoice(
++                choice, native_decision=raw, surface="acp", authority="human",
++                native_request_id=tool_call.tool_call_id, native_session_id=session_id,
++            )
+         coro = request_permission_fn(
+             session_id=session_id,
+             tool_call=tool_call,
+@@ -147,22 +153,27 @@ def make_approval_callback(
+             log_message="Permission request: failed to schedule on loop",
+         )
+         if future is None:
+-            return "deny"
++            return observed("deny", "schedule_failed")
+ 
+         try:
+             response = future.result(timeout=timeout)
+-        except (FutureTimeout, Exception) as exc:
++        except FutureTimeout as exc:
+             future.cancel()
+             logger.warning("Permission request timed out or failed: %s", exc)
+-            return "deny"
++            return observed("deny", "timeout")
++        except Exception as exc:
++            future.cancel()
++            logger.warning("Permission request failed: %s", exc)
++            return observed("deny", "request_failed")
+ 
+         if response is None:
+-            return "deny"
++            return observed("deny", "no_response")
+ 
+         allowed_option_ids = {option.option_id for option in options}
+-        return _map_outcome_to_hermes(
++        choice = _map_outcome_to_hermes(
+             response.outcome,
+             allowed_option_ids=allowed_option_ids,
+         )
++        return observed(choice, getattr(response.outcome, "option_id", None) or getattr(response.outcome, "outcome", "deny"))
+ 
+     return _callback
+diff --git a/hermes_cli/middleware.py b/hermes_cli/middleware.py
+index 8795952a2b..3daad75fd5 100644
+--- a/hermes_cli/middleware.py
++++ b/hermes_cli/middleware.py
+@@ -8,6 +8,7 @@ contract helpers here so agent-loop call sites and plugins share one vocabulary.
+ from __future__ import annotations
+ 
+ import logging
++import json
+ from copy import deepcopy
+ from dataclasses import dataclass, field
+ from typing import Any, Callable, Dict, List, Optional
+@@ -19,6 +20,7 @@ MIDDLEWARE_SCHEMA_VERSION = "hermes.middleware.v1"
+ 
+ TOOL_REQUEST_MIDDLEWARE = "tool_request"
+ TOOL_EXECUTION_MIDDLEWARE = "tool_execution"
++TOOL_DISPATCH_MIDDLEWARE = "tool_dispatch"
+ LLM_REQUEST_MIDDLEWARE = "llm_request"
+ LLM_EXECUTION_MIDDLEWARE = "llm_execution"
+ 
+@@ -29,6 +31,7 @@ API_EXECUTION_MIDDLEWARE = LLM_EXECUTION_MIDDLEWARE
+ VALID_MIDDLEWARE: set[str] = {
+     TOOL_REQUEST_MIDDLEWARE,
+     TOOL_EXECUTION_MIDDLEWARE,
++    TOOL_DISPATCH_MIDDLEWARE,
+     LLM_REQUEST_MIDDLEWARE,
+     LLM_EXECUTION_MIDDLEWARE,
+ }
+@@ -196,16 +199,36 @@ def run_tool_execution_middleware(
+     **context: Any,
+ ) -> Any:
+     """Run tool execution through registered tool execution middleware."""
++    original_args = context.pop("original_args", args)
++    def dispatch(effective_args):
++        dispatch_callbacks = _get_middleware_callbacks(TOOL_DISPATCH_MIDDLEWARE)
++        if not dispatch_callbacks:
++            return next_call(effective_args)
++        # Final wrappers observe the effective invocation, after rewriting.
++        # Unlike tool_execution, this seam cannot replace its arguments.
++        snapshot = _safe_copy(effective_args)
++        def invoke(observed_args):
++            if observed_args != snapshot:
++                # This refusal happens before the native handler is called.
++                # Keep it distinct from an exception after a tool had effects.
++                return json.dumps({"error": "tool_dispatch middleware cannot rewrite arguments", "executed": False})
++            return next_call(_safe_copy(snapshot))
++        return _run_execution_chain(
++            TOOL_DISPATCH_MIDDLEWARE,
++            dispatch_callbacks, invoke,
++            tool_name=tool_name, args=_safe_copy(snapshot),
++            original_args=original_args, **context,
++        )
+     callbacks = _get_middleware_callbacks(TOOL_EXECUTION_MIDDLEWARE)
+     if not callbacks:
+-        return next_call(args)
++        return dispatch(args)
+     return _run_execution_chain(
+         TOOL_EXECUTION_MIDDLEWARE,
+         callbacks,
+-        next_call,
++        dispatch,
+         tool_name=tool_name,
+         args=args,
+-        original_args=context.pop("original_args", args),
++        original_args=original_args,
+         **context,
+     )
+ 
+diff --git a/hermes_cli/plugins.py b/hermes_cli/plugins.py
+index 25bf83af30..b19db9604d 100644
+--- a/hermes_cli/plugins.py
++++ b/hermes_cli/plugins.py
+@@ -162,11 +162,17 @@ VALID_HOOKS: Set[str] = {
+     #
+     # Kwargs for pre_approval_request:
+     #   command: str, description: str, pattern_key: str, pattern_keys: list[str],
+-    #   session_key: str, surface: "cli" | "gateway"
++    #   session_key: str, surface: "cli" | "gateway" | "acp" | "acp_edit" | "auto_review"
++    #   request_id, tool_call_id, turn_id; structured edits include tool_name/arguments.
+     # Kwargs for post_approval_response: same as above plus
+     #   choice: "once" | "session" | "always" | "deny" | "timeout"
++    #   native_decision preserves the native result; authority identifies human,
++    #   policy, or auto_review. ACP adds native request/session IDs.
++    # approval_policy_applied observes a stored policy actually used for this
++    # invocation, including scope, policy_id, and original decision authority.
+     "pre_approval_request",
+     "post_approval_response",
++    "approval_policy_applied",
+ }
+ 
+ ENTRY_POINTS_GROUP = "hermes_agent.plugins"
+diff --git a/model_tools.py b/model_tools.py
+index 0618138aa9..c4928b60fb 100644
+--- a/model_tools.py
++++ b/model_tools.py
+@@ -1063,20 +1063,6 @@ def handle_function_call(
+                 )
+                 return result
+ 
+-        # ACP/Zed edit approval runs before any file mutation.  The requester
+-        # is bound via ContextVar only for ACP sessions, so CLI/gateway paths
+-        # are unaffected when it is unset.
+-        try:
+-            from acp_adapter.edit_approval import maybe_require_edit_approval
+-
+-            edit_block_message = maybe_require_edit_approval(function_name, function_args)
+-            if edit_block_message is not None:
+-                return edit_block_message
+-        except Exception as _edit_approval_err:
+-            logger.debug("ACP edit approval guard error: %s", _edit_approval_err)
+-            if function_name in {"write_file", "patch"}:
+-                return json.dumps({"error": "Edit approval denied: approval guard failed"}, ensure_ascii=False)
+-
+         # Notify the read-loop tracker when a non-read/search tool runs,
+         # so the *consecutive* counter resets (reads after other work are fine).
+         if function_name not in _READ_SEARCH_TOOLS:
+@@ -1128,10 +1114,24 @@ def handle_function_call(
+                     )
+             from hermes_cli.middleware import run_tool_execution_middleware
+ 
++            def _approved_dispatch(next_args: Dict[str, Any]) -> Any:
++                # Keep approval before mutation but inside execution observers,
++                # with the effective arguments and native correlation context.
++                try:
++                    from acp_adapter.edit_approval import maybe_require_edit_approval
++                    blocked = maybe_require_edit_approval(function_name, next_args)
++                    if blocked is not None:
++                        return blocked
++                except Exception as exc:
++                    logger.debug("ACP edit approval guard error: %s", exc)
++                    if function_name in {"write_file", "patch"}:
++                        return json.dumps({"error": "Edit approval denied: approval guard failed", "executed": False}, ensure_ascii=False)
++                return _dispatch(next_args)
++
+             result = run_tool_execution_middleware(
+                 function_name,
+                 function_args,
+-                _dispatch,
++                _approved_dispatch,
+                 original_args=_tool_original_args,
+                 task_id=task_id or "",
+                 session_id=session_id or "",
+diff --git a/tools/approval.py b/tools/approval.py
+index 6ed1fb9cbc..2f6f7be0ea 100644
+--- a/tools/approval.py
++++ b/tools/approval.py
+@@ -16,6 +16,7 @@ import sys
+ import threading
+ import time
+ import unicodedata
++import uuid
+ from typing import Optional
+ from hermes_cli.config import cfg_get
+ 
+@@ -44,6 +45,17 @@ _approval_tool_call_id: contextvars.ContextVar[str] = contextvars.ContextVar(
+     "approval_tool_call_id",
+     default="",
+ )
++_approval_request_ids = contextvars.ContextVar("approval_request_ids", default=())
++_session_approval_origins: dict[tuple[str, str], str] = {}
++
++
++class NativeApprovalChoice(str):
++    """Keep the existing decision string and expose native observer details."""
++
++    def __new__(cls, choice: str, **details):
++        value = super().__new__(cls, choice)
++        value.observer_details = details
++        return value
+ 
+ 
+ def _fire_approval_hook(hook_name: str, **kwargs) -> None:
+@@ -53,8 +65,7 @@ def _fire_approval_hook(hook_name: str, **kwargs) -> None:
+     imported very early, long before plugins are discovered). Never raises --
+     plugin errors are logged and swallowed.
+ 
+-    Only fires for the two approval-specific hooks in VALID_HOOKS:
+-    pre_approval_request, post_approval_response.
++    Observes requests, responses, and actual uses of stored approval policies.
+     """
+     try:
+         from hermes_cli.plugins import invoke_hook
+@@ -63,6 +74,18 @@ def _fire_approval_hook(hook_name: str, **kwargs) -> None:
+         # (e.g. bare tool-only imports, minimal test environments).
+         return
+     try:
++        if hook_name == "pre_approval_request":
++            request_id = kwargs.setdefault("request_id", uuid.uuid4().hex)
++            _approval_request_ids.set((*_approval_request_ids.get(), request_id))
++        elif hook_name == "post_approval_response":
++            pending = _approval_request_ids.get()
++            kwargs.setdefault("request_id", pending[-1] if pending else uuid.uuid4().hex)
++            if pending:
++                _approval_request_ids.set(pending[:-1])
++            choice = kwargs.get("choice", "deny")
++            kwargs.setdefault("native_decision", str(choice))
++            kwargs.setdefault("authority", "human")
++            kwargs.update(getattr(choice, "observer_details", {}))
+         kwargs.setdefault("turn_id", _approval_turn_id.get())
+         kwargs.setdefault("tool_call_id", _approval_tool_call_id.get())
+         invoke_hook(hook_name, **kwargs)
+@@ -765,10 +788,11 @@ def submit_pending(session_key: str, approval: dict):
+         _pending[session_key] = approval
+ 
+ 
+-def approve_session(session_key: str, pattern_key: str):
++def approve_session(session_key: str, pattern_key: str, *, authority: str = "policy"):
+     """Approve a pattern for this session only."""
+     with _lock:
+         _session_approved.setdefault(session_key, set()).add(pattern_key)
++        _session_approval_origins[(session_key, pattern_key)] = authority
+ 
+ 
+ def enable_session_yolo(session_key: str) -> None:
+@@ -793,6 +817,8 @@ def clear_session(session_key: str) -> None:
+         return
+     with _lock:
+         _session_approved.pop(session_key, None)
++        for key in [k for k in _session_approval_origins if k[0] == session_key]:
++            _session_approval_origins.pop(key, None)
+         _session_yolo.discard(session_key)
+         _pending.pop(session_key, None)
+         entries = _gateway_queues.pop(session_key, [])
+@@ -836,6 +862,39 @@ def approve_permanent(pattern_key: str):
+         _permanent_approved.add(pattern_key)
+ 
+ 
++def _observe_applied_policy(session_key: str, pattern_key: str, command: str) -> None:
++    """Observe the policy actually used for this invocation, outside the getter."""
++    aliases = _approval_key_aliases(pattern_key)
++    with _lock:
++        permanent = next((a for a in aliases if a in _permanent_approved), None)
++        source = permanent or next((a for a in aliases if a in _session_approved.get(session_key, set())), None)
++        authority = "policy" if permanent else _session_approval_origins.get((session_key, source), "policy")
++    if source is not None:
++        _fire_approval_hook(
++            "approval_policy_applied", request_id=uuid.uuid4().hex,
++            command=command, session_key=session_key, pattern_key=source,
++            choice="always" if permanent else "session",
++            native_decision="always" if permanent else "session",
++            scope="persistent" if permanent else "session", authority=authority,
++            policy_id=f"hermes:{'persistent' if permanent else session_key}:{source}",
++            surface="native_policy",
++        )
++
++
++def _observed_smart_approve(command: str, description: str, session_key: str, *, scope: str) -> str:
++    """Preserve the auxiliary review verdict without calling it human consent."""
++    context = dict(command=command, description=description,
++                   session_key=session_key, surface="auto_review", authority="auto_review")
++    _fire_approval_hook("pre_approval_request", **context)
++    verdict = _smart_approve(command, description)
++    _fire_approval_hook(
++        "post_approval_response", **context, native_decision=verdict,
++        choice={"approve": "once", "deny": "deny"}.get(verdict, "escalate"),
++        scope=scope if verdict == "approve" else "once",
++    )
++    return verdict
++
++
+ def load_permanent(patterns: set):
+     """Bulk-load permanent allowlist entries from config."""
+     with _lock:
+@@ -966,7 +1025,7 @@ def prompt_dangerous_approval(command: str, description: str,
+ 
+             if thread.is_alive():
+                 print("\n" + t("approval.timeout"))
+-                return "deny"
++                return NativeApprovalChoice("deny", native_decision="timeout")
+ 
+             choice = result["choice"]
+             if choice in {'o', 'once'}:
+@@ -1280,6 +1339,12 @@ def _await_gateway_decision(session_key: str, notify_cb, approval_data: dict,
+     except Exception as exc:
+         logger.warning("Gateway approval notify failed: %s", exc)
+         _drop_entry()
++        _fire_approval_hook(
++            "post_approval_response", command=command, description=description,
++            pattern_key=primary_key, pattern_keys=list(all_keys),
++            session_key=session_key, surface=surface,
++            choice="deny", native_decision="notify_failed", authority="policy",
++        )
+         return {"resolved": False, "choice": None, "notify_failed": True}
+ 
+     # Block until the user responds or timeout (default 5 min). Poll in short
+@@ -1413,6 +1478,7 @@ def check_all_command_guards(command: str, env_type: str,
+ 
+     # Collect warnings that need approval
+     warnings = []  # list of (pattern_key, description, is_tirith)
++    applied_policies = []
+ 
+     session_key = get_current_session_key()
+ 
+@@ -1427,13 +1493,19 @@ def check_all_command_guards(command: str, env_type: str,
+         tirith_desc = _format_tirith_description(tirith_result)
+         if not is_approved(session_key, tirith_key):
+             warnings.append((tirith_key, tirith_desc, True))
++        else:
++            applied_policies.append(tirith_key)
+ 
+     if is_dangerous:
+         if not is_approved(session_key, pattern_key):
+             warnings.append((pattern_key, description, False))
++        else:
++            applied_policies.append(pattern_key)
+ 
+     # Nothing to warn about
+     if not warnings:
++        for key in applied_policies:
++            _observe_applied_policy(session_key, key, command)
+         return {"approved": True, "message": None}
+ 
+     # --- Phase 2.5: Smart approval (auxiliary LLM risk assessment) ---
+@@ -1442,11 +1514,11 @@ def check_all_command_guards(command: str, env_type: str,
+     # (openai/codex#13860).
+     if approval_mode == "smart":
+         combined_desc_for_llm = "; ".join(desc for _, desc, _ in warnings)
+-        verdict = _smart_approve(command, combined_desc_for_llm)
++        verdict = _observed_smart_approve(command, combined_desc_for_llm, session_key, scope="session")
+         if verdict == "approve":
+             # Auto-approve and grant session-level approval for these patterns
+             for key, _, _ in warnings:
+-                approve_session(session_key, key)
++                approve_session(session_key, key, authority="auto_review")
+             logger.debug("Smart approval: auto-approved '%s' (%s)",
+                          command[:60], combined_desc_for_llm)
+             return {"approved": True, "message": None,
+@@ -1703,13 +1775,14 @@ def check_execute_code_guard(code: str, env_type: str) -> dict:
+     # Without this, "Approve session" / "Always" choices are stored but never
+     # consulted, so every execute_code call re-prompts the user (#39275).
+     if is_approved(session_key, pattern_key):
++        _observe_applied_policy(session_key, pattern_key, command)
+         return {"approved": True, "message": None}
+ 
+     # Smart mode: ask the aux LLM about the whole script. An APPROVE here only
+     # suppresses the redundant whole-script prompt; the per-call terminal()
+     # guards (restored by context propagation) still run independently.
+     if approval_mode == "smart":
+-        verdict = _smart_approve(command, description)
++        verdict = _observed_smart_approve(command, description, session_key, scope="once")
+         if verdict == "approve":
+             logger.debug("Smart approval: auto-approved execute_code for session %s",
+                          session_key)
+diff --git a/tools/code_execution_tool.py b/tools/code_execution_tool.py
+index 5514f63b9f..16630df9c1 100644
+--- a/tools/code_execution_tool.py
++++ b/tools/code_execution_tool.py
+@@ -1115,6 +1115,7 @@ def execute_code(
+         return json.dumps({
+             "status": "error",
+             "error": _guard.get("message") or "execute_code blocked by approval guard.",
++            "executed": False,
+             "tool_calls_made": 0,
+             "duration_seconds": 0,
+         }, ensure_ascii=False)

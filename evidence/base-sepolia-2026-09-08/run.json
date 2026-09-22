@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "status": "failed",
+  "started_at_utc": "2026-09-08T20:56:27.014342+00:00",
+  "source_revision": "b6dfff1c51db2cd20e6145deffa33b87c307cb27",
+  "source_dirty": false,
+  "module_sources": {
+    "aa_commons": "packages/commons/aa_commons/__init__.py",
+    "aa_sdk": "packages/sdk/aa_sdk/__init__.py",
+    "aa_verifier": "packages/verifier/aa_verifier/__init__.py",
+    "_config": "scripts/_config.py"
+  },
+  "chain_id": 84532,
+  "artifact_sha256": "bd156e5ce4dfe0ec38d7824fe071c4e9749bd6664a448b5ce7142dce466e402c",
+  "contract_source_sha256": "f1c89a47214e6cd6da8d472bf2e3c5501ab937563fd095a3f18e4892340d3ad6",
+  "actors": {
+    "provider": "0x40d1d7Dc9539A3B5232e4Ee433351c0F60916E3B",
+    "challenger": "0xC5A392d7fe3494be737b43502F8F149351e255dd",
+    "verifier": "0xFBedb613973053BD135Dea58948F99eb8a04eC85",
+    "deployer": "0xFBedb613973053BD135Dea58948F99eb8a04eC85"
+  },
+  "balances_before_wei": {
+    "provider": 2096469909984088,
+    "challenger": 2298909893276083,
+    "verifier": 2092127917931858
+  },
+  "scenario_origin": "SDK protocol scenarios with synthetic authorization decisions; native framework tests are separate",
+  "clock_policy": "unchanged contract deadlines; no time travel",
+  "checkpoint_defaults": {
+    "records": 10,
+    "seconds_while_dirty": 30,
+    "outage": "continue and retry"
+  },
+  "predicates": [
+    {
+      "number": "AAP-1",
+      "spec_id": "no_destructive_without_consent",
+      "version": 3,
+      "statement": "invocation authorization binds one actual tool call; legacy target/scope grants remain explicit",
+      "predicate_hash": "0x70e831bc67f31bb30926e572501954625b0c57889af6d1520adde4cf30a6d8ea"
+    },
+    {
+      "number": "AAP-2",
+      "spec_id": "action_within_declared_scope",
+      "version": 3,
+      "statement": "scoped actions must stay (lexically) within the declared scope, e.g. under workspace/",
+      "predicate_hash": "0x8e97a6466b861f76708de7d453035062cad592b4e9c51670467ea2509e46dbe7"
+    },
+    {
+      "number": "AAP-3",
+      "spec_id": "payment_within_mandate",
+      "version": 1,
+      "statement": "payments must stay within budget and the merchant allowlist",
+      "predicate_hash": "0xf70c8ee28ab7904b6a773ad2304d6e6e267fa3acd1475213b21f9635012cde8b"
+    },
+    {
+      "number": "AAP-4",
+      "spec_id": "egress_within_allowlist",
+      "version": 4,
+      "statement": "outbound/egress actions must target only allow-listed recipients or sinks (content-blind)",
+      "predicate_hash": "0x6e6bec9d08bb55a35ac02b03d632404e2659f4fd91ed1c8315ff5d0ff37c7efa"
+    },
+    {
+      "number": "AAP-5",
+      "spec_id": "aggregate_within_cap",
+      "version": 1,
+      "statement": "aggregate over the session \u2014 count of actions or sum of amounts \u2014 must stay within a cap",
+      "predicate_hash": "0x52f4d3db4e36f9f3f22136252fa2f9d131c0100027b09ae16e75ed393f60d1f8"
+    }
+  ],
+  "attempts": [
+    {
+      "operation": "deploy",
+      "state": "confirmed",
+      "sender": "0xFBedb613973053BD135Dea58948F99eb8a04eC85",
+      "value_wei": 0,
+      "function_args": [
+        "0xFBedb613973053BD135Dea58948F99eb8a04eC85"
+      ],
+      "started_at_utc": "2026-09-08T20:56:27.272269+00:00",
+      "transaction_hash": "0x6ee498d64a8fd29f0ac5db6a4a4be648398b0db3971db4278beace456c59057f"
+    }
+  ],
+  "transactions": [
+    {
+      "operation": "deploy",
+      "transaction_hash": "0x6ee498d64a8fd29f0ac5db6a4a4be648398b0db3971db4278beace456c59057f",
+      "block_number": 46566351,
+      "status": 1,
+      "gas_used": 2346842,
+      "effective_gas_price_wei": 6000000,
+      "execution_fee_wei": 14081052000000,
+      "l1_fee_wei": 6103888329,
+      "execution_plus_l1_fee_wei": 14087155888329,
+      "confirmation_seconds": 0.7695540419954341
+    }
+  ],
+  "scenarios": [],
+  "contract_address": "0xc6A163C66ab0d17321A5217930556D534aDf47f8",
+  "error": "AssertionError: deployed bytecode differs from the recorded artifact"
+}

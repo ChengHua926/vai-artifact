@@ -1,0 +1,108 @@
+registerPromise 0xcf3849a705968d8a43a9223846f6c2e130e406c991dad7257391e40a621868f6 status 1
+registerPromise 0x88948771266395840e1dfa2d57ce33e84db8fcb9194f06a2e6f6d5935d268aef status 1
+Traceback (most recent call last):
+  File "/workspace/.audit-worktrees/practicality-mainnet/scripts/practicality/run_public.py", line 454, in <module>
+    main()
+  File "/workspace/.audit-worktrees/practicality-mainnet/scripts/practicality/run_public.py", line 451, in main
+    verifier_main(args) if args.command == "verify" else run(args)
+                                                         ^^^^^^^^^
+  File "/workspace/.audit-worktrees/practicality-mainnet/scripts/practicality/run_public.py", line 326, in run
+    acc, session = native.begin(name, store, escrow, provider, challenger)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/.audit-worktrees/practicality-mainnet/scripts/practicality/run_public.py", line 130, in begin
+    acc, session = self.plugin.begin_session(party=party, store=store, chain=escrow,
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/.audit-worktrees/practicality-mainnet/integrations/hermes/aa_hermes/__init__.py", line 69, in begin_session
+    binding = _Binding(native_id, acc, acc.session(party="hermes-user" if party is _UNSET_PARTY else party))
+                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/.audit-worktrees/practicality-mainnet/packages/sdk/aa_sdk/__init__.py", line 529, in session
+    rcpt = self.chain.open_session(self.provider_addr, session_id, party)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/.audit-worktrees/practicality-mainnet/packages/sdk/aa_sdk/chain.py", line 152, in open_session
+    return self._send(
+           ^^^^^^^^^^^
+  File "/workspace/.audit-worktrees/practicality-mainnet/scripts/run_evidence.py", line 171, in _send
+    receipt = super()._send(fn, sender, value)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/.audit-worktrees/practicality-mainnet/packages/sdk/aa_sdk/chain.py", line 123, in _send
+    receipt = self.w3.eth.wait_for_transaction_receipt(h)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/hermes-agent/.venv/lib/python3.12/site-packages/web3/eth/eth.py", line 505, in wait_for_transaction_receipt
+    tx_receipt = self._transaction_receipt(transaction_hash)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/hermes-agent/.venv/lib/python3.12/site-packages/web3/module.py", line 112, in caller
+    result = w3.manager.request_blocking(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/hermes-agent/.venv/lib/python3.12/site-packages/web3/manager.py", line 232, in request_blocking
+    response = self._make_request(method, params)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/hermes-agent/.venv/lib/python3.12/site-packages/web3/manager.py", line 163, in _make_request
+    return request_func(method, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/hermes-agent/.venv/lib/python3.12/site-packages/web3/middleware/base.py", line 56, in middleware
+    return self.response_processor(method, make_request(method, params))
+                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/hermes-agent/.venv/lib/python3.12/site-packages/web3/middleware/base.py", line 56, in middleware
+    return self.response_processor(method, make_request(method, params))
+                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/hermes-agent/.venv/lib/python3.12/site-packages/web3/middleware/base.py", line 56, in middleware
+    return self.response_processor(method, make_request(method, params))
+                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  [Previous line repeated 2 more times]
+  File "/workspace/.audit-worktrees/practicality-mainnet/scripts/_config.py", line 95, in make_request
+    return super().make_request(method, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/hermes-agent/.venv/lib/python3.12/site-packages/web3/_utils/caching/caching_utils.py", line 261, in wrapper
+    return func(provider, method, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/hermes-agent/.venv/lib/python3.12/site-packages/web3/providers/rpc/rpc.py", line 166, in make_request
+    raw_response = self._make_request(method, request_data)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/hermes-agent/.venv/lib/python3.12/site-packages/web3/providers/rpc/rpc.py", line 143, in _make_request
+    return self._request_session_manager.make_post_request(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/hermes-agent/.venv/lib/python3.12/site-packages/web3/_utils/http_session_manager.py", line 152, in make_post_request
+    with self.get_response_from_post_request(
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/hermes-agent/.venv/lib/python3.12/site-packages/web3/_utils/http_session_manager.py", line 134, in get_response_from_post_request
+    return session.post(endpoint_uri, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/hermes-agent/.venv/lib/python3.12/site-packages/requests/sessions.py", line 640, in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/hermes-agent/.venv/lib/python3.12/site-packages/requests/sessions.py", line 592, in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/hermes-agent/.venv/lib/python3.12/site-packages/requests/sessions.py", line 706, in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/hermes-agent/.venv/lib/python3.12/site-packages/requests/adapters.py", line 645, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "/workspace/hermes-agent/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py", line 788, in urlopen
+    response = self._make_request(
+               ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/hermes-agent/.venv/lib/python3.12/site-packages/urllib3/connectionpool.py", line 534, in _make_request
+    response = conn.getresponse()
+               ^^^^^^^^^^^^^^^^^^
+  File "/workspace/hermes-agent/.venv/lib/python3.12/site-packages/urllib3/connection.py", line 571, in getresponse
+    httplib_response = super().getresponse()
+                       ^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13/Frameworks/Python.framework/Versions/3.12/lib/python3.12/http/client.py", line 1450, in getresponse
+    response.begin()
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13/Frameworks/Python.framework/Versions/3.12/lib/python3.12/http/client.py", line 336, in begin
+    version, status, reason = self._read_status()
+                              ^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13/Frameworks/Python.framework/Versions/3.12/lib/python3.12/http/client.py", line 297, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13/Frameworks/Python.framework/Versions/3.12/lib/python3.12/socket.py", line 720, in readinto
+    return self._sock.recv_into(b)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13/Frameworks/Python.framework/Versions/3.12/lib/python3.12/ssl.py", line 1251, in recv_into
+    return self.read(nbytes, buffer)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13/Frameworks/Python.framework/Versions/3.12/lib/python3.12/ssl.py", line 1103, in read
+    return self._sslobj.read(len, buffer)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt

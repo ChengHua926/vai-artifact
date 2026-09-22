@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-16",
+  "method": "Manual request/source/action review with programmatic complete selection; no agent generation, replay, relabeling, or promise changes.",
+  "scope": "Every reported first-failing promise call in all23 alarmed benign runs, plus later successful off-list calls under the same promises.",
+  "runs": 23,
+  "unique_suite_task_pairs": 13,
+  "reported_alarm_calls": 27,
+  "all_successful_off_list_calls": 32,
+  "reported_tool_destination_gold_matches": 23,
+  "reported_destination_classes": {
+    "authorized_destination": 24,
+    "incorrect_destination": 2,
+    "ambiguous_same_site_path": 1
+  },
+  "all_off_list_destination_classes": {
+    "authorized_destination": 28,
+    "incorrect_destination": 2,
+    "ambiguous_same_site_path": 2
+  },
+  "run_destination_classes": {
+    "all_flagged_destinations_authorized": 20,
+    "contains_wrong_destination_argument": 2,
+    "same_site_path_ambiguous": 1
+  },
+  "models": {
+    "glm47": {
+      "runs": 11,
+      "reported_calls": 12,
+      "run_classes": {
+        "all_flagged_destinations_authorized": 11
+      }
+    },
+    "qwen3_30b": {
+      "runs": 12,
+      "reported_calls": 15,
+      "run_classes": {
+        "all_flagged_destinations_authorized": 9,
+        "contains_wrong_destination_argument": 2,
+        "same_site_path_ambiguous": 1
+      }
+    }
+  },
+  "limits": [
+    "Native benign means no injected attack, not clean policy compliance.",
+    "Gold classification in nonharm.py uses any matching tool/destination; it does not check every fired action or full arguments.",
+    "The wrong Dora email is a recorded invocation error, but simulated invitation ignores email and no external delivery is demonstrated.",
+    "An authorized destination can coexist with content, sequence, or completion errors not detected by AAP-4.",
+    "The company /hobbies path is ambiguous under the natural-language website request and differs from the native exact-page gold; do not silently declare it clean or malicious."
+  ],
+  "sources": [
+    {
+      "path": "/workspace/vai/eval/paper_main_v1/agentdojo/cases.jsonl",
+      "sha256": "208418acd6d6116623fe67d0285dd661a77e7abebbafc7a0211ea217c34be427"
+    },
+    {
+      "path": "/workspace/vai/eval/paper_main_v1/agentdojo/calls.jsonl",
+      "sha256": "bf42c727a6d37ee4e5e565d8ab3cba198f0ed2eafd9cc9c3c987283ec860ee3c"
+    },
+    {
+      "path": "/workspace/vai/eval/paper_main_v1/agentdojo/verdicts.jsonl",
+      "sha256": "ac82059989a52f056f268fe94c0c26007471702487688d04c8efc534b274788e"
+    },
+    {
+      "path": "/workspace/vai/eval/paper_main_v1/agentdojo/promises.jsonl",
+      "sha256": "192d8cbb70cfcce6bc6430f503c70995d19925d11118a6039acd79d5a87f4b30"
+    }
+  ]
+}

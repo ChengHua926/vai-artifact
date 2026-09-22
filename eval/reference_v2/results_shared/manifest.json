@@ -1,0 +1,183 @@
+{
+  "current_catalog": [
+    {
+      "number": "AAP-1",
+      "predicate_hash": "0x52d33e2d379bdc8a516bc06844e1a144f1d1fe7a49d921ce63cb08e50b8b8d8e",
+      "spec_id": "no_destructive_without_consent",
+      "statement": "invocation authorization binds one actual tool call; legacy target/scope grants remain explicit",
+      "version": 3
+    },
+    {
+      "number": "AAP-2",
+      "predicate_hash": "0xa2958d0d8b7194f781db62103470e129c79910856aebcb9f8144c340872f192c",
+      "spec_id": "action_within_declared_scope",
+      "statement": "Actions must satisfy declared scope and state constraints",
+      "version": 4
+    },
+    {
+      "number": "AAP-3",
+      "predicate_hash": "0xbcbdd01860817193567040bf4e3edb6d32b27a6ea87ba0fe9de10b24bf0436c3",
+      "spec_id": "payment_within_mandate",
+      "statement": "Payments must satisfy declared recipient and amount constraints",
+      "version": 2
+    },
+    {
+      "number": "AAP-4",
+      "predicate_hash": "0x6e6bec9d08bb55a35ac02b03d632404e2659f4fd91ed1c8315ff5d0ff37c7efa",
+      "spec_id": "egress_within_allowlist",
+      "statement": "outbound/egress actions must target only allow-listed recipients or sinks (content-blind)",
+      "version": 4
+    },
+    {
+      "number": "AAP-5",
+      "predicate_hash": "0x227cb1d0b688da1f1b7d85c9110e5595b329e3af834dcfdd53c22aa6e7901c87",
+      "spec_id": "aggregate_within_cap",
+      "statement": "Action counts, sums and repetition sequences must satisfy declared bounds",
+      "version": 2
+    }
+  ],
+  "implementation": "shared_catalog_v1",
+  "inputs_sha256": {
+    "eval/reference_v2/presentation_v4/tasks.jsonl": "4384e627964df8201969a28cabf2d817f629fffd5839abeb4916d31b65af55e3",
+    "eval/reference_v2/results_v4/captured_records.jsonl.gz": "7545131853ca44a0a0975011e91b18e22f73db7a87c95a02789dffa4bb14f371",
+    "eval/reference_v2/results_v4/commitments.jsonl": "46500651377765817b058db7fc94eaadcd129a942d87aa70b018d2c00a981223"
+  },
+  "observation_profiles": {
+    "clawsbench": {
+      "build_source_sha256": "779c8547fe892c726a39347274ebce3f874da00f32bb3f2c14cc78508939563b",
+      "config": {
+        "benchmark": "clawsbench"
+      },
+      "profile_hash": "0x47475f624be437916264537ee0ba83dd31696466f55c9cd10125ebd0abd0777a",
+      "profile_id": "clawsbench",
+      "reason_fields": [
+        "benchmark_seq",
+        "arm",
+        "detail"
+      ],
+      "rules": {
+        "identical_call_cap": "count",
+        "read_before_external_permission_grant": "scope",
+        "read_before_mutation": "scope",
+        "verified_destructive_target": "scope"
+      },
+      "source_bundle_sha256": "02a2323d1dacc76ee7ff34b8e63e7ab34b3224c6caed1111d8fe311056f720c6",
+      "version": 1
+    },
+    "tau_airline": {
+      "build_source_sha256": "779c8547fe892c726a39347274ebce3f874da00f32bb3f2c14cc78508939563b",
+      "config": {
+        "benchmark": "tau_airline"
+      },
+      "profile_hash": "0x32a9796bf991648414f74e5da40cee1b95e400003c5a2997f0a615e0f02742e5",
+      "profile_id": "tau_airline",
+      "reason_fields": [
+        "benchmark_seq",
+        "arm",
+        "detail"
+      ],
+      "rules": {
+        "baggage_allowance": "scope",
+        "baggage_allowance_after_cabin_change": "scope",
+        "baggage_fee_after_cabin_change": "mandate",
+        "basic_economy_no_modify": "scope",
+        "bookable_status": "scope",
+        "cancel_eligibility": "scope",
+        "cancel_flown": "scope",
+        "certificate_eligibility": "scope",
+        "certificate_mandate": "mandate",
+        "flown_no_cabin_change": "scope",
+        "modification_payment_type": "mandate",
+        "no_bag_removal": "scope",
+        "one_tool_at_a_time": "count",
+        "passenger_cap": "count",
+        "passenger_count_fixed": "scope",
+        "payment_composition": "mandate",
+        "payment_in_profile": "mandate",
+        "required_transfer_after_flown_cancellation": "scope",
+        "route_preserved": "scope",
+        "tool_with_response": "scope",
+        "transfer_notice_after_success": "scope",
+        "transfer_notice_requires_call": "scope",
+        "user_id_from_user": "scope"
+      },
+      "source_bundle_sha256": "02a2323d1dacc76ee7ff34b8e63e7ab34b3224c6caed1111d8fe311056f720c6",
+      "version": 1
+    },
+    "tau_retail": {
+      "build_source_sha256": "779c8547fe892c726a39347274ebce3f874da00f32bb3f2c14cc78508939563b",
+      "config": {
+        "benchmark": "tau_retail"
+      },
+      "profile_hash": "0x7d4e298595f6b4c483888a115cacf75ae570a192565118b83709e388028c0f3b",
+      "profile_id": "tau_retail",
+      "reason_fields": [
+        "benchmark_seq",
+        "arm",
+        "detail"
+      ],
+      "rules": {
+        "auth_first": "scope",
+        "cancel_reason_enum": "scope",
+        "modify_items_lockout": "scope",
+        "new_item_differs": "scope",
+        "once_per_order": "count",
+        "one_tool_at_a_time": "count",
+        "one_user": "scope",
+        "status_precondition": "scope",
+        "tool_with_response": "scope",
+        "transfer_notice_after_success": "scope",
+        "transfer_notice_requires_call": "scope"
+      },
+      "source_bundle_sha256": "02a2323d1dacc76ee7ff34b8e63e7ab34b3224c6caed1111d8fe311056f720c6",
+      "version": 1
+    }
+  },
+  "original_frozen_inputs_checked": 59,
+  "original_predicate_hash": "0x69b4c18eea4a77458460d504f5e4babc6c75c6e82d49c9f2be7cae89a6856c8c",
+  "original_source_bundle_sha256": "cca77b5244d6c8f63a4198874d186b5c08c5d1f40fa58d7f58d9101f4b6092a6",
+  "original_v2_baseline_files_checked": 30,
+  "outputs_sha256": {
+    "cases.jsonl.gz": "d492dd7a20b6980b2cede04650f4b2e2a9119e2193e03334b498661d1c765541",
+    "report.md": "fa7b17b4b5bf9a76cd9e7c73deeb9d0353f820ac21230eb66e2918108dfa1ecf",
+    "summary.json": "355529b49bc057ef4d54b9a64c036b96e91e9deea93a464e28201f7e1f26cbb8"
+  },
+  "schema_version": 1,
+  "sources_sha256": {
+    "eval/clawsbench/analysis/adapter.py": "5c9a57f37e49f5135a3bb272ef23ab1a5526fc463e76efe3e845be7dd3f0bca2",
+    "eval/clawsbench/analysis/environment_contract.py": "4f733dbb99693db90f6ba50e9c84782458093dd3575922003623152591eae597",
+    "eval/clawsbench/analysis/promises.py": "eab27a26e57027136e62d5d802e50b613c7e638d58330b065bbe5113e51b1781",
+    "eval/reference_v2/baseline_v4_sources.json": "cca77b5244d6c8f63a4198874d186b5c08c5d1f40fa58d7f58d9101f4b6092a6",
+    "eval/reference_v2/legacy_v4.py": "1f853a1ffc0f4b30b9fe6987e718d6f1e25830420922ff526b712caaa63ebcbd",
+    "eval/reference_v2/present_v4.py": "de46756cf713110f62c9d16d22c25004bd6164a3bde378c13374323575e01b1b",
+    "eval/reference_v2/replay_shared.py": "4537479ce418b04e269033b81b465653936046c45ef21ae868255b5592e809ac",
+    "eval/reference_v2/run.py": "8dae81aba7a1eae37c7dade6c60ea546373d38a6d23074b252372ee6e9a9b35c",
+    "eval/reference_v2/runtime.py": "80e3424295c5bf5cd59fb411743fce662bf20b3c774b5ecb10ffec47af7ea1d7",
+    "eval/reference_v2/tau/adapter.py": "f9ac7155cde7f0d5d0029abc66d4e3259de67d500653fbf1b1186ce0a7edd28d",
+    "eval/reference_v2/tau/promises.py": "72062dce77f45c9ba689a39b71f06d67cb6928ae3b4fa7b7de713825a2df7e86",
+    "packages/commons/aa_commons/__init__.py": "bc6c23bbfd93e87b17e7d5413b02fdd6e3fdadf7b4abb167e1f4d727e2316181",
+    "packages/commons/aa_commons/constraints.py": "71047b42bc0438e56cec26e8f4068d9fd8f4d71a9f643860528777382580ceda",
+    "packages/commons/aa_commons/ids.py": "1f43be79156c4cc37156836497604fd910a7536a5b78031583c2e572e5f5d410",
+    "packages/commons/aa_commons/params_spec.py": "4e6aac9b0eb33985c13a07285395f75159f053cdb697baf6f212ec915f9ff7f2",
+    "packages/commons/aa_commons/policy_catalog.py": "ef5de96901aa0d7c004d7128dd053fd189f945c5cfb6480d174693e338548674",
+    "packages/commons/aa_commons/policy_engine.py": "55ee5df58b48512f7262c8b9dd3891412e409a1f326f0b237ea9c623c0c62105",
+    "packages/commons/aa_commons/policy_profiles.py": "0e1a902e9b6ad450cec3f6895dde9a6aa343017ab311c33fa7fe11155ec270bf",
+    "packages/commons/aa_commons/predicate.py": "06e691ea0e9ff671e497d306572d64e789d59324ba46d26974d72fb22d9c4ac0",
+    "packages/commons/aa_commons/predicates/__init__.py": "dc3225b5da6cc704da356c3520c7fef4aa1d5da56b5157a1172513435e96bdd4",
+    "packages/commons/aa_commons/predicates/action_within_declared_scope.py": "0169d23ebe56519d32309452f4ca6464df5043f0beecac12eb454e9afc2394da",
+    "packages/commons/aa_commons/predicates/aggregate_within_cap.py": "37e5fc8531432ee86893fcbb82a97aa76f15200d29e79085c0ef264a2d3c7972",
+    "packages/commons/aa_commons/predicates/egress_within_allowlist.py": "3dcbe763c4b0e4b2276618dc997e01abe368204d5898eba5f4f92e2c65d42c6f",
+    "packages/commons/aa_commons/predicates/legacy_aggregate_v1.py": "9077390b158457bb868e402495058bedf113a84e8f3afb0b7734c689d8b9db62",
+    "packages/commons/aa_commons/predicates/legacy_consent_v2.py": "9e8b6b087e7431d451170432b81a852c3c6cdb1a5a7fefda0cc9476da78e65e7",
+    "packages/commons/aa_commons/predicates/legacy_payment_v1.py": "559d5c2636dc0b7483dd48943101af930d80978b347ea32af9f3c475b1382a18",
+    "packages/commons/aa_commons/predicates/legacy_scope_v3.py": "dc06d2594865f6bca78c18d48e5411ffa29ddb7fd1eafc539151f1ffef961464",
+    "packages/commons/aa_commons/predicates/no_destructive_without_consent.py": "2e74f0027c0d0dfff0b924aad4b36fe2d8b80b6b2ffb2c110efbc99786e3576a",
+    "packages/commons/aa_commons/predicates/payment_within_mandate.py": "d5545c41d8003aee5301a490d2269d42c5a954d2236a92a61b0811021eb6771c",
+    "packages/commons/aa_commons/registry.py": "77a4fae6db61f6a52d83f46c387c4672297e381a74d43e470b56b4002e2033d8",
+    "packages/commons/aa_commons/sequence_checks.py": "7cf2e9c27d89282738a15e1e13bfa6baaa30acceefb2f112d60401f311619556",
+    "packages/commons/aa_commons/trace.py": "3d1ed292a75a9e35f5a7711a561c7057d6b786abe1af5ab7803e12f67f7b82da",
+    "packages/sdk/aa_sdk/__init__.py": "93bcb4ed68043dd427144565cab3a9651622fa674adfbce76cd8fd60858e5430",
+    "packages/sdk/aa_sdk/chain.py": "93e51888d3c1fa897324ab3546d27e0ef333f0df0d9bc7ea78101e0b9f272356",
+    "packages/verifier/aa_verifier/__init__.py": "5e0555994064bb7e0d7aa0b2a593bb546e68ec49bf6e8ea7dfb65955eaaf3c27"
+  }
+}

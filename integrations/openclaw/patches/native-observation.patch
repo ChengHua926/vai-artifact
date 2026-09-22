@@ -1,0 +1,1171 @@
+diff --git a/src/agents/agent-tools.before-tool-call.ts b/src/agents/agent-tools.before-tool-call.ts
+index 9c9ad52a42..3f50b7389a 100644
+--- a/src/agents/agent-tools.before-tool-call.ts
++++ b/src/agents/agent-tools.before-tool-call.ts
+@@ -68,6 +68,12 @@ import {
+   recordStructuredReplaySafeToolCall,
+   structuredReplaySafeToolCallIds,
+ } from "./agent-tools.before-tool-call.state.js";
++import {
++  isToolObservationActive,
++  withToolObservation,
++  observeToolApproval,
++  setObservedToolParams,
++} from "./tool-observation.js";
+ export {
+   consumeAdjustedParamsForToolCall,
+   consumePreExecutionBlockedToolCall,
+@@ -646,6 +652,7 @@ async function requestPluginToolApproval(params: {
+   const approval = params.approval;
+   const timeoutMs = resolvePluginToolApprovalTimeoutMs(approval);
+   const gatewayTimeoutMs = resolvePluginToolApprovalGatewayTimeoutMs(timeoutMs);
++  let observedRequestId: string | undefined;
+   try {
+     const requestResult: {
+       id?: string;
+@@ -686,11 +693,29 @@ async function requestPluginToolApproval(params: {
+         params: params.baseParams,
+       };
+     }
++    observedRequestId = id;
++    setObservedToolParams(
++      mergeParamsWithApprovalOverrides(params.baseParams, params.overrideParams),
++    );
++    if (isToolObservationActive())
++      await observeToolApproval({
++        phase: "approval_requested",
++        requestId: id,
++        origin: { pluginId: approval.pluginId, channel: params.ctx?.turnSourceChannel },
++      });
+     const hasImmediateDecision = Object.hasOwn(requestResult ?? {}, "decision");
+     let decision: string | null | undefined;
+     if (hasImmediateDecision) {
+       decision = requestResult?.decision;
+       if (decision === null) {
++        if (isToolObservationActive())
++          await observeToolApproval({
++            phase: "approval_resolved",
++            requestId: id,
++            decision: "cancelled",
++            scope: "once",
++            authority: "human",
++          });
+         notifyPluginApprovalResolution(approval, PluginApprovalResolutions.CANCELLED);
+         return {
+           blocked: true,
+@@ -742,6 +767,15 @@ async function requestPluginToolApproval(params: {
+       decision === PluginApprovalResolutions.DENY
+         ? decision
+         : PluginApprovalResolutions.TIMEOUT;
++    if (isToolObservationActive())
++      await observeToolApproval({
++        phase: "approval_resolved",
++        requestId: id,
++        decision: resolution,
++        scope: resolution === "allow-always" ? "persistent" : "once",
++        authority: "human",
++        origin: { pluginId: approval.pluginId, channel: params.ctx?.turnSourceChannel },
++      });
+     notifyPluginApprovalResolution(approval, resolution);
+     if (
+       decision === PluginApprovalResolutions.ALLOW_ONCE ||
+@@ -778,6 +812,16 @@ async function requestPluginToolApproval(params: {
+       params: params.baseParams,
+     };
+   } catch (err) {
++    if (observedRequestId) {
++      if (isToolObservationActive())
++        await observeToolApproval({
++          phase: "approval_resolved",
++          requestId: observedRequestId,
++          decision: "cancelled",
++          scope: "once",
++          authority: "human",
++        });
++    }
+     notifyPluginApprovalResolution(approval, PluginApprovalResolutions.CANCELLED);
+     const signal = params.signal;
+     const abortCancelled =
+@@ -1475,6 +1519,7 @@ export function wrapToolWithBeforeToolCallHook(
+       }
+       const startedAt = Date.now();
+       try {
++        setObservedToolParams(executeParams, true);
+         const result = await execute(toolCallId, executeParams, signal, onUpdate);
+         const durationMs = Date.now() - startedAt;
+         const terminalPresentation = resolveToolTerminalPresentation({
+@@ -1556,6 +1601,11 @@ export function wrapToolWithBeforeToolCallHook(
+       }
+     },
+   };
++  const observedExecute = wrappedTool.execute;
++  wrappedTool.execute = (toolCallId, params, signal, onUpdate) =>
++    withToolObservation({ toolName, toolCallId, params, ctx }, () =>
++      observedExecute(toolCallId, params, signal, onUpdate),
++    );
+   copyPluginToolMeta(tool, wrappedTool);
+   copyChannelAgentToolMeta(tool as never, wrappedTool as never);
+   Object.defineProperty(wrappedTool, BEFORE_TOOL_CALL_WRAPPED, {
+diff --git a/src/agents/bash-tools.exec-gateway-approval.e2e.test.ts b/src/agents/bash-tools.exec-gateway-approval.e2e.test.ts
+index 05c080ce15..5281b44bed 100644
+--- a/src/agents/bash-tools.exec-gateway-approval.e2e.test.ts
++++ b/src/agents/bash-tools.exec-gateway-approval.e2e.test.ts
+@@ -16,10 +16,17 @@ import {
+   disconnectGatewayClient,
+   getFreeGatewayPort,
+ } from "../gateway/test-helpers.e2e.js";
++import {
++  initializeGlobalHookRunner,
++  resetGlobalHookRunner,
++} from "../plugins/hook-runner-global.js";
++import type { PluginHookToolObservationEvent } from "../plugins/hook-types.js";
++import { createMockPluginRegistry } from "../plugins/hooks.test-helpers.js";
+ import { captureEnv, setTestEnvValue } from "../test-utils/env.js";
+ import { GATEWAY_CLIENT_MODES, GATEWAY_CLIENT_NAMES } from "../utils/message-channel.js";
+ import type { ExecApprovalFollowupOutcome } from "./bash-tools.exec-types.js";
+ import { createExecTool } from "./bash-tools.exec.js";
++import { withToolObservation } from "./tool-observation.js";
+ 
+ const TEST_ENV_KEYS = [
+   "HOME",
+@@ -160,17 +167,35 @@ describe("gateway-hosted exec approvals", () => {
+         },
+       });
+ 
+-      const pending = await tool.execute("exec-approval-e2e", {
+-        command: "printf 'smoke\\n'",
+-        workdir: workspaceDir,
+-        timeout: 5,
+-      });
++      const observations: PluginHookToolObservationEvent[] = [];
++      initializeGlobalHookRunner(
++        createMockPluginRegistry([
++          {
++            hookName: "tool_observation",
++            handler: async (event) => {
++              observations.push(event as PluginHookToolObservationEvent);
++            },
++          },
++        ]),
++      );
++      cleanup.push(resetGlobalHookRunner);
++      const args = { command: "printf 'smoke\\n'", workdir: workspaceDir, timeout: 5 };
++      const pending = await withToolObservation(
++        {
++          toolName: "exec",
++          toolCallId: "exec-approval-e2e",
++          params: args,
++          ctx: { sessionId: "approval-e2e-session", runId: "approval-e2e-run" },
++        },
++        () => tool.execute("exec-approval-e2e", args),
++      );
+ 
+       expect(pending.details.status).toBe("approval-pending");
+       if (pending.details.status !== "approval-pending") {
+         throw new Error("expected approval-pending exec result");
+       }
+ 
++      expect(observations.map((e) => e.phase)).toEqual(["execution_started", "approval_requested"]);
+       await operator.request(
+         "exec.approval.resolve",
+         { id: pending.details.approvalId, decision: "allow-once" },
+@@ -181,6 +206,25 @@ describe("gateway-hosted exec approvals", () => {
+       expect(outcome.status).toBe("completed");
+       expect(outcome.exitCode).toBe(0);
+       expect(outcome.aggregated).toBe("smoke");
++      expect(observations.map((e) => e.phase)).toEqual([
++        "execution_started",
++        "approval_requested",
++        "approval_resolved",
++        "execution_completed",
++      ]);
++      expect(observations[2]).toMatchObject({
++        requestId: pending.details.approvalId,
++        decision: "allow-once",
++        scope: "once",
++        authority: "human",
++        params: args,
++      });
++      expect(observations[3].result).toMatchObject({
++        status: "completed",
++        exitCode: 0,
++        aggregated: "smoke",
++      });
++      expect(new Set(observations.map((e) => e.actionId)).size).toBe(1);
+     },
+     EXEC_APPROVAL_E2E_TIMEOUT_MS,
+   );
+diff --git a/src/agents/bash-tools.exec-host-gateway.test.ts b/src/agents/bash-tools.exec-host-gateway.test.ts
+index a30d9a0a22..46db84b0c2 100644
+--- a/src/agents/bash-tools.exec-host-gateway.test.ts
++++ b/src/agents/bash-tools.exec-host-gateway.test.ts
+@@ -18,8 +18,15 @@ import {
+   planShellAuthorization,
+   type ExecAuthorizationPlan,
+ } from "../infra/exec-authorization-plan.js";
++import {
++  initializeGlobalHookRunner,
++  resetGlobalHookRunner,
++} from "../plugins/hook-runner-global.js";
++import type { PluginHookToolObservationEvent } from "../plugins/hook-types.js";
++import { createMockPluginRegistry } from "../plugins/hooks.test-helpers.js";
+ import type { ExecApprovalFollowupTarget } from "./bash-tools.exec-host-shared.js";
+ import type { ExecApprovalFollowupFactory } from "./bash-tools.exec-types.js";
++import { withToolObservation } from "./tool-observation.js";
+ 
+ type StrictInlineEvalBoundary =
+   typeof import("./bash-tools.exec-host-shared.js").enforceStrictInlineEvalApprovalBoundary;
+@@ -255,7 +262,7 @@ function captureSecurityEvents(): {
+   const events: DiagnosticSecurityEvent[] = [];
+   const stop = onInternalDiagnosticEvent((event, metadata) => {
+     if (metadata.trusted && event.type === "security.event") {
+-      events.push(event);
++      events.push(event as PluginHookToolObservationEvent);
+     }
+   });
+   return { events, stop };
+@@ -1696,4 +1703,171 @@ EOF`,
+     expect(sendExecApprovalFollowupResultMock).toHaveBeenCalledTimes(1);
+     expect(runExecProcessMock).not.toHaveBeenCalled();
+   });
++  it.each(["webchat", "feishu"])(
++    "observes native %s approval and waits for actual completion",
++    async (turnSourceChannel) => {
++      const observations: PluginHookToolObservationEvent[] = [];
++      initializeGlobalHookRunner(
++        createMockPluginRegistry([
++          {
++            hookName: "tool_observation",
++            handler: async (event) => {
++              observations.push(event as PluginHookToolObservationEvent);
++            },
++          },
++        ]),
++      );
++      try {
++        requiresExecApprovalMock.mockReturnValue(true);
++        resolveApprovalDecisionOrUndefinedMock.mockResolvedValue("allow-once");
++        createExecApprovalDecisionStateMock.mockReturnValue({
++          baseDecision: { timedOut: false },
++          approvedByAsk: true,
++          deniedReason: null,
++        });
++        let finish!: (value: unknown) => void;
++        const completed = new Promise((resolve) => {
++          finish = resolve;
++        });
++        runExecProcessMock.mockResolvedValue({ session: { id: "process-aa" }, promise: completed });
++        const result = await withToolObservation(
++          {
++            toolName: "exec",
++            toolCallId: "call-aa",
++            params: { command: "printf approved" },
++            ctx: { sessionId: "native-aa", runId: "r-aa" },
++          },
++          async () => {
++            const allowed = await runGatewayAllowlist({
++              command: "printf approved",
++              turnSourceChannel,
++            });
++            return allowed.pendingResult ?? { content: [], details: { ok: true } };
++          },
++        );
++        expect(observations[1]).toMatchObject({ phase: "approval_requested", requestId: "req-1" });
++        await vi.waitFor(() =>
++          expect(observations.some((e) => e.phase === "approval_resolved")).toBe(true),
++        );
++        expect(observations.find((e) => e.phase === "approval_resolved")).toMatchObject({
++          decision: "allow-once",
++          scope: "once",
++          authority: "human",
++          params: { command: "printf approved" },
++        });
++        if (turnSourceChannel === "feishu") {
++          expect((result as { details: { status?: string } }).details.status).toBe(
++            "approval-pending",
++          );
++          expect(observations.some((e) => e.phase === "execution_completed")).toBe(false);
++          finish({ status: "completed", exitCode: 0, timedOut: false, aggregated: "approved" });
++          await vi.waitFor(() => expect(observations.at(-1)?.phase).toBe("execution_completed"));
++          expect(observations.at(-1)?.result).toMatchObject({ aggregated: "approved" });
++        }
++        expect(new Set(observations.map((e) => e.actionId)).size).toBe(1);
++      } finally {
++        resetGlobalHookRunner();
++      }
++    },
++  );
++
++  it.each(["deny", null, undefined])(
++    "observes deferred denial %s without a completed effect",
++    async (decision) => {
++      const observations: PluginHookToolObservationEvent[] = [];
++      initializeGlobalHookRunner(
++        createMockPluginRegistry([
++          {
++            hookName: "tool_observation",
++            handler: async (event) => {
++              observations.push(event as PluginHookToolObservationEvent);
++            },
++          },
++        ]),
++      );
++      try {
++        requiresExecApprovalMock.mockReturnValue(true);
++        resolveApprovalDecisionOrUndefinedMock.mockResolvedValue(decision);
++        createExecApprovalDecisionStateMock.mockReturnValue({
++          baseDecision: { timedOut: decision == null },
++          approvedByAsk: false,
++          deniedReason: decision === "deny" ? "user-denied" : "approval-timeout",
++        });
++        await withToolObservation(
++          {
++            toolName: "exec",
++            toolCallId: "call-denied",
++            params: { command: "printf denied" },
++            ctx: { sessionId: "native-aa" },
++          },
++          async () =>
++            (await runGatewayAllowlist({ command: "printf denied", turnSourceChannel: "feishu" }))
++              .pendingResult!,
++        );
++        await vi.waitFor(() => expect(observations.at(-1)?.phase).toBe("execution_completed"));
++        expect(observations.at(-1)?.result).toHaveProperty("blocked");
++        expect(runExecProcessMock).not.toHaveBeenCalled();
++      } finally {
++        resetGlobalHookRunner();
++      }
++    },
++  );
++  it("records the exact durable command entry even when no segment entry matched", async () => {
++    const observations: PluginHookToolObservationEvent[] = [];
++    initializeGlobalHookRunner(
++      createMockPluginRegistry([
++        {
++          hookName: "tool_observation",
++          handler: async (event) => {
++            observations.push(event as PluginHookToolObservationEvent);
++          },
++        },
++      ]),
++    );
++    try {
++      const grant = {
++        id: "exact-grant",
++        source: "allow-always",
++        pattern: "=command:stored",
++        commandText: "printf approved",
++      };
++      resolveExecHostApprovalContextMock.mockReturnValue({
++        approvals: { allowlist: [grant], file: { version: 1, agents: {} } },
++        hostSecurity: "allowlist",
++        hostAsk: "on-miss",
++        askFallback: "deny",
++      });
++      hasDurableExecApprovalMock.mockReturnValue(true);
++      hasExactCommandDurableExecApprovalMock.mockImplementation(
++        (value) =>
++          value.allowlist?.some((entry: { id?: string }) => entry.id === "exact-grant") ?? false,
++      );
++      evaluateShellAllowlistWithAuthorizationMock.mockReturnValue({
++        allowlistMatches: [],
++        analysisOk: true,
++        allowlistSatisfied: false,
++        segments: [],
++        segmentAllowlistEntries: [],
++        segmentSatisfiedBy: [],
++      });
++      await withToolObservation(
++        {
++          toolName: "exec",
++          toolCallId: "policy-call",
++          params: { command: "printf approved" },
++          ctx: { sessionId: "policy-session" },
++        },
++        async () => runGatewayAllowlist({ command: "printf approved" }),
++      );
++      const approval = observations.find((e) => e.phase === "approval_resolved");
++      expect(approval).toMatchObject({
++        authority: "policy",
++        scope: "persistent",
++        decision: "allow",
++      });
++      expect(JSON.parse(approval!.policyId!)).toEqual({ kind: "exact-command", entries: [grant] });
++    } finally {
++      resetGlobalHookRunner();
++    }
++  });
+ });
+diff --git a/src/agents/bash-tools.exec-host-gateway.ts b/src/agents/bash-tools.exec-host-gateway.ts
+index 47c440f97d..4ae56e7132 100644
+--- a/src/agents/bash-tools.exec-host-gateway.ts
++++ b/src/agents/bash-tools.exec-host-gateway.ts
+@@ -68,6 +68,12 @@ import type {
+   ExecToolDetails,
+ } from "./bash-tools.exec-types.js";
+ import type { AgentToolResult } from "./runtime/index.js";
++import {
++  isToolObservationActive,
++  markObservedExecSpawn,
++  observeToolApproval,
++  completeObservedTool,
++} from "./tool-observation.js";
+ 
+ /** Full input bundle for gateway-host allowlist and approval processing. */
+ type ProcessGatewayAllowlistParams = {
+@@ -653,6 +659,14 @@ export async function processGatewayAllowlist(
+         },
+       });
+       if (decision.decision === "allow-once") {
++        if (isToolObservationActive())
++          await observeToolApproval({
++            phase: "approval_resolved",
++            requestId: "auto-review",
++            decision: decision.decision,
++            scope: "once",
++            authority: "auto_review",
++          });
+         params.warnings.push(
+           `Exec auto-review allowed once (risk=${decision.risk}): ${decision.rationale}`,
+         );
+@@ -718,6 +732,12 @@ export async function processGatewayAllowlist(
+       ...requestArgs,
+       register: registerGatewayApproval,
+     });
++    if (isToolObservationActive())
++      await observeToolApproval({
++        phase: "approval_requested",
++        requestId: approvalId,
++        origin: { host: "gateway", initiatingSurface, channel: params.turnSourceChannel },
++      });
+     emitGatewayExecApprovalSecurityEvent({
+       action: "exec.approval.requested",
+       outcome: "success",
+@@ -736,6 +756,15 @@ export async function processGatewayAllowlist(
+         preResolvedDecision,
+       })
+     ) {
++      if (isToolObservationActive())
++        await observeToolApproval({
++          phase: "approval_resolved",
++          requestId: approvalId,
++          decision: preResolvedDecision,
++          scope: preResolvedDecision === "allow-always" ? "persistent" : "once",
++          authority: "human",
++          origin: { host: "gateway", initiatingSurface, unavailableReason },
++        });
+       const { baseDecision, approvedByAsk, deniedReason } = createExecApprovalDecisionState({
+         decision: preResolvedDecision,
+         askFallback,
+@@ -763,6 +792,7 @@ export async function processGatewayAllowlist(
+           trigger: params.trigger,
+           decision: preResolvedDecision,
+         });
++        if (isToolObservationActive()) await completeObservedTool({ blocked: inlineDeniedReason });
+         throw new Error(
+           buildHeadlessExecApprovalDeniedMessage({
+             trigger: params.trigger,
+@@ -807,6 +837,15 @@ export async function processGatewayAllowlist(
+         preResolvedDecision,
+         onFailure,
+       });
++      if (isToolObservationActive())
++        await observeToolApproval({
++          phase: "approval_resolved",
++          requestId: approvalId,
++          decision: decision === undefined ? "request-failed" : decision,
++          scope: decision === "allow-always" ? "persistent" : "once",
++          authority: "human",
++          origin: { host: "gateway", initiatingSurface },
++        });
+       if (decision === undefined) {
+         emitGatewayExecApprovalSecurityEvent({
+           action: "exec.approval.denied",
+@@ -896,6 +935,8 @@ export async function processGatewayAllowlist(
+     if (unavailableReason === null && shouldAwaitGatewayApprovalInline(params)) {
+       const approvalDecision = await resolveApprovalForExecution(() => undefined);
+       if (approvalDecision.deniedReason) {
++        if (isToolObservationActive())
++          await completeObservedTool({ blocked: approvalDecision.deniedReason });
+         return {
+           deniedResult: buildGatewayExecApprovalDeniedToolResult({
+             approvalId,
+@@ -937,10 +978,14 @@ export async function processGatewayAllowlist(
+           ),
+       );
+       if (approvalDecision.requestFailed) {
++        if (isToolObservationActive())
++          await completeObservedTool({ blocked: "approval-request-failed" });
+         return;
+       }
+ 
+       if (approvalDecision.deniedReason) {
++        if (isToolObservationActive())
++          await completeObservedTool({ blocked: approvalDecision.deniedReason });
+         await sendExecApprovalFollowupResult(
+           followupTarget,
+           `Exec denied (gateway id=${approvalId}, ${approvalDecision.deniedReason}): ${params.command}`,
+@@ -952,6 +997,7 @@ export async function processGatewayAllowlist(
+ 
+       let run: Awaited<ReturnType<typeof runExecProcess>> | null;
+       try {
++        markObservedExecSpawn();
+         run = await runExecProcess({
+           command: params.command,
+           execCommand: enforcedCommand,
+@@ -971,6 +1017,7 @@ export async function processGatewayAllowlist(
+           timeoutSec: effectiveTimeout,
+         });
+       } catch {
++        if (isToolObservationActive()) await completeObservedTool({ blocked: "spawn-failed" });
+         await sendExecApprovalFollowupResult(
+           followupTarget,
+           `Exec denied (gateway id=${approvalId}, spawn-failed): ${params.command}`,
+@@ -980,7 +1027,14 @@ export async function processGatewayAllowlist(
+ 
+       markBackgrounded(run.session);
+ 
+-      const outcome = await run.promise;
++      let outcome;
++      try {
++        outcome = await run.promise;
++      } catch (error) {
++        if (isToolObservationActive()) await completeObservedTool({ error: String(error) });
++        return;
++      }
++      await completeObservedTool(outcome);
+       const dynamicFollowupText = await resolveGatewayExecApprovalFollowupText({
+         approvalFollowup: params.approvalFollowup,
+         approvalId,
+@@ -1030,6 +1084,29 @@ export async function processGatewayAllowlist(
+     throw new Error("exec denied: allowlist miss");
+   }
+ 
++  if (durableApprovalSatisfied) {
++    const policy = exactCommandDurableApprovalSatisfied
++      ? {
++          kind: "exact-command",
++          entries: approvals.allowlist.filter((entry) =>
++            hasExactCommandDurableExecApproval({ allowlist: [entry], commandText: params.command }),
++          ),
++        }
++      : {
++          kind: "segments",
++          entries: allowlistEval.segmentAllowlistEntries.filter((entry) => entry != null),
++        };
++    if (isToolObservationActive() && policy.entries.length > 0)
++      await observeToolApproval({
++        phase: "approval_resolved",
++        requestId: "durable-policy",
++        decision: "allow",
++        scope: "persistent",
++        authority: "policy",
++        policyId: JSON.stringify(policy),
++        origin: { host: "gateway" },
++      });
++  }
+   recordMatchedAllowlistUse(
+     resolveApprovalAuditTrustPath(allowlistEval.segments[0]?.resolution ?? null, params.workdir),
+   );
+diff --git a/src/agents/bash-tools.exec.ts b/src/agents/bash-tools.exec.ts
+index da1ed01dbb..dfb2c808a7 100644
+--- a/src/agents/bash-tools.exec.ts
++++ b/src/agents/bash-tools.exec.ts
+@@ -83,6 +83,12 @@ import {
+ import { createModelExecAutoReviewer } from "./exec-auto-reviewer.js";
+ import type { AgentToolResult } from "./runtime/index.js";
+ import { EXEC_TOOL_DISPLAY_SUMMARY } from "./tool-description-presets.js";
++import {
++  completeObservedTool,
++  isToolObservationActive,
++  markObservedExecPreflight,
++  markObservedExecSpawn,
++} from "./tool-observation.js";
+ import { type AgentToolWithMeta, failedTextResult, textResult } from "./tools/common.js";
+ 
+ export type { BashSandboxConfig } from "./bash-tools.shared.js";
+@@ -1374,6 +1380,7 @@ export function createExecTool(
+         return markResolveExecEnvPrepared(execParams, state);
+       })(),
+     execute: async (_toolCallId, args, signal, onUpdate) => {
++      markObservedExecPreflight();
+       const params = isResolveExecEnvPrepared(args as ExecToolArgs)
+         ? stripMalformedXmlArgValueSuffixFromKeys(
+             args as ExecToolArgs,
+@@ -1475,6 +1482,12 @@ export function createExecTool(
+         sandboxAvailable: Boolean(defaults?.sandbox),
+       });
+       const host: ExecHost = target.effectiveHost;
++      if (host === "node" && isToolObservationActive()) {
++        await completeObservedTool({ blocked: { code: "unsupported-exec-host", host } });
++        throw new Error(
++          "accountability observation supports gateway/local exec, not node-host exec",
++        );
++      }
+ 
+       const explicitSecurity = defaults?.security;
+       const configuredSecurity = explicitSecurity ?? (host === "sandbox" ? "deny" : "full");
+@@ -1747,6 +1760,7 @@ export function createExecTool(
+         await validateScriptFileForShellBleed({ command: params.command, workdir });
+       }
+ 
++      markObservedExecSpawn();
+       const run = await runExecProcess({
+         command: params.command,
+         execCommand: execCommandOverride,
+@@ -1857,7 +1871,14 @@ export function createExecTool(
+         }
+ 
+         run.promise
+-          .then((outcome) => {
++          .then(async (outcome) => {
++            await completeObservedTool(
++              buildExecForegroundResult({
++                outcome,
++                cwd: run.session.cwd,
++                warningText: getWarningText(),
++              }),
++            );
+             cleanupToolRunListeners();
+             if (yielded || run.session.backgrounded) {
+               return;
+@@ -1870,7 +1891,8 @@ export function createExecTool(
+               }),
+             );
+           })
+-          .catch((err: unknown) => {
++          .catch(async (err: unknown) => {
++            await completeObservedTool({ error: String(err) });
+             cleanupToolRunListeners();
+             if (yielded || run.session.backgrounded) {
+               return;
+diff --git a/src/plugins/hook-types.ts b/src/plugins/hook-types.ts
+index 0b0c403b59..8ecdc740bf 100644
+--- a/src/plugins/hook-types.ts
++++ b/src/plugins/hook-types.ts
+@@ -94,6 +94,7 @@ export type PluginHookName =
+   | "message_sent"
+   | "before_tool_call"
+   | "after_tool_call"
++  | "tool_observation"
+   | "tool_result_persist"
+   | "before_message_write"
+   | "session_start"
+@@ -141,6 +142,7 @@ export const PLUGIN_HOOK_NAMES = [
+   "message_sent",
+   "before_tool_call",
+   "after_tool_call",
++  "tool_observation",
+   "tool_result_persist",
+   "before_message_write",
+   "session_start",
+@@ -645,6 +647,23 @@ export type PluginHookAfterToolCallEvent = {
+   durationMs?: number;
+ };
+ 
++/** Native observation patch: awaited evidence capture, with no policy return value. */
++export type PluginHookToolObservationEvent = {
++  phase: "execution_started" | "approval_requested" | "approval_resolved" | "execution_completed";
++  actionId: string;
++  eventId: string;
++  toolName: string;
++  toolCallId: string;
++  params: Record<string, unknown>;
++  requestId?: string;
++  decision?: string | null;
++  scope?: "once" | "session" | "persistent";
++  authority?: "human" | "policy" | "auto_review";
++  policyId?: string;
++  origin?: unknown;
++  result?: unknown;
++};
++
+ export type PluginHookToolResultPersistContext = {
+   agentId?: string;
+   sessionKey?: string;
+@@ -1157,6 +1176,10 @@ export type PluginHookHandlerMap = {
+     event: PluginHookBeforeToolCallEvent,
+     ctx: PluginHookToolContext,
+   ) => Promise<PluginHookBeforeToolCallResult | void> | PluginHookBeforeToolCallResult | void;
++  tool_observation: (
++    event: PluginHookToolObservationEvent,
++    ctx: PluginHookToolContext,
++  ) => Promise<void> | void;
+   after_tool_call: (
+     event: PluginHookAfterToolCallEvent,
+     ctx: PluginHookToolContext,
+diff --git a/src/plugins/hooks.ts b/src/plugins/hooks.ts
+index 57abb8ce3f..747165c0f6 100644
+--- a/src/plugins/hooks.ts
++++ b/src/plugins/hooks.ts
+@@ -19,6 +19,7 @@ import type { GlobalHookRunnerRegistry, HookRunnerRegistry } from "./hook-regist
+ import type {
+   PluginHookAfterCompactionEvent,
+   PluginHookAfterToolCallEvent,
++  PluginHookToolObservationEvent,
+   PluginHookAgentContext,
+   PluginHookAgentEndEvent,
+   PluginHookBeforeAgentFinalizeEvent,
+@@ -1296,6 +1297,13 @@ export function createHookRunner(
+    * Run after_tool_call hook.
+    * Runs in parallel (fire-and-forget).
+    */
++  async function runToolObservation(
++    event: PluginHookToolObservationEvent,
++    ctx: PluginHookToolContext,
++  ): Promise<void> {
++    return runVoidHook("tool_observation", event, ctx);
++  }
++
+   async function runAfterToolCall(
+     event: PluginHookAfterToolCallEvent,
+     ctx: PluginHookToolContext,
+@@ -1652,6 +1660,7 @@ export function createHookRunner(
+     // Tool hooks
+     runBeforeToolCall,
+     runAfterToolCall,
++    runToolObservation,
+     runToolResultPersist,
+     // Message write hooks
+     runBeforeMessageWrite,
+diff --git a/src/agents/tool-observation.ts b/src/agents/tool-observation.ts
+new file mode 100644
+index 0000000000..b24d366ed8
+--- /dev/null
++++ b/src/agents/tool-observation.ts
+@@ -0,0 +1,121 @@
++/** Observation only: native approval decisions and execution keep their existing owners. */
++import { AsyncLocalStorage } from "node:async_hooks";
++import { getGlobalHookRunner } from "../plugins/hook-runner-global.js";
++import type {
++  PluginHookToolContext,
++  PluginHookToolObservationEvent,
++} from "../plugins/hook-types.js";
++
++type Invocation = {
++  actionId: string;
++  toolName: string;
++  toolCallId: string;
++  params: Record<string, unknown>;
++  ctx: PluginHookToolContext;
++  completed: boolean;
++  dispatched: boolean;
++  nonexecutionCode?: string;
++};
++const invocation = new AsyncLocalStorage<Invocation>();
++type ApprovalObservation = Pick<
++  PluginHookToolObservationEvent,
++  "phase" | "requestId" | "decision" | "scope" | "authority" | "policyId" | "origin"
++>;
++
++async function emit(
++  fields: Partial<PluginHookToolObservationEvent> & {
++    phase: PluginHookToolObservationEvent["phase"];
++  },
++) {
++  const current = invocation.getStore();
++  const hooks = getGlobalHookRunner();
++  if (!current || !hooks?.hasHooks("tool_observation")) return;
++  await hooks.runToolObservation(
++    {
++      toolName: current.toolName,
++      toolCallId: current.toolCallId,
++      params: structuredClone(current.params),
++      actionId: current.actionId,
++      eventId: `${current.actionId}:${fields.phase}:${fields.requestId ?? ""}`,
++      ...fields,
++    },
++    current.ctx,
++  );
++}
++export function isToolObservationActive() {
++  return invocation.getStore() !== undefined;
++}
++export async function observeToolApproval(event: ApprovalObservation) {
++  await emit(event);
++}
++export function setObservedToolParams(params: unknown, dispatched = false) {
++  const current = invocation.getStore();
++  if (current && params && typeof params === "object" && !Array.isArray(params)) {
++    current.params = structuredClone(params as Record<string, unknown>);
++    current.dispatched ||= dispatched;
++  }
++}
++export function markObservedExecPreflight() {
++  const current = invocation.getStore();
++  if (current) {
++    current.dispatched = false;
++    current.nonexecutionCode = "exec-prelaunch";
++  }
++}
++export function markObservedExecSpawn() {
++  const current = invocation.getStore();
++  if (current) current.dispatched = true;
++}
++export async function completeObservedTool(result: unknown) {
++  const current = invocation.getStore();
++  if (!current || current.completed) return;
++  current.completed = true;
++  await emit({ phase: "execution_completed", result });
++}
++export async function withToolObservation<T>(
++  params: {
++    toolName: string;
++    toolCallId: string;
++    params: unknown;
++    ctx?: Omit<PluginHookToolContext, "toolName">;
++  },
++  execute: () => Promise<T>,
++): Promise<T> {
++  const nativeSession = params.ctx?.sessionId ?? params.ctx?.sessionKey;
++  if (!nativeSession || !params.toolCallId || !getGlobalHookRunner()?.hasHooks("tool_observation"))
++    return execute();
++  const state: Invocation = {
++    actionId: JSON.stringify([nativeSession, params.ctx?.runId ?? "", params.toolCallId]),
++    toolName: params.toolName,
++    toolCallId: params.toolCallId,
++    params: structuredClone(params.params as Record<string, unknown>),
++    ctx: { ...params.ctx, toolName: params.toolName, toolCallId: params.toolCallId },
++    completed: false,
++    dispatched: false,
++  };
++  return invocation.run(state, async () => {
++    await emit({ phase: "execution_started" });
++    try {
++      const result = await execute();
++      const status = (result as { details?: { status?: string } })?.details?.status;
++      // A pending approval or background process owns its later terminal event.
++      if (status !== "approval-pending" && status !== "running") {
++        await completeObservedTool(
++          status === "blocked" || status === "denied" ? { blocked: result } : result,
++        );
++      }
++      return result;
++    } catch (error) {
++      await completeObservedTool(
++        state.dispatched
++          ? { error: String(error) }
++          : {
++              blocked: state.nonexecutionCode
++                ? { code: state.nonexecutionCode, message: String(error) }
++                : String(error),
++            },
++      );
++      throw error;
++    }
++  });
++}
+diff --git a/src/agents/tool-observation.test.ts b/src/agents/tool-observation.test.ts
+new file mode 100644
+index 0000000000..1b03f5eb9b
+--- /dev/null
++++ b/src/agents/tool-observation.test.ts
+@@ -0,0 +1,158 @@
++import { afterEach, describe, expect, it } from "vitest";
++import {
++  initializeGlobalHookRunner,
++  resetGlobalHookRunner,
++} from "../plugins/hook-runner-global.js";
++import type {
++  PluginHookToolObservationEvent,
++  PluginHookToolContext,
++} from "../plugins/hook-types.js";
++import { createMockPluginRegistry } from "../plugins/hooks.test-helpers.js";
++import {
++  withToolObservation,
++  observeToolApproval,
++  completeObservedTool,
++  markObservedExecPreflight,
++  markObservedExecSpawn,
++} from "./tool-observation.js";
++
++afterEach(resetGlobalHookRunner);
++describe("native tool observation", () => {
++  it("keeps invocation identity across deferred completion and concurrent sessions", async () => {
++    const events: Array<{
++      phase: string;
++      actionId: string;
++      decision?: string | null;
++      sessionId?: string;
++    }> = [];
++    initializeGlobalHookRunner(
++      createMockPluginRegistry([
++        {
++          hookName: "tool_observation",
++          handler: async (e, c) => {
++            events.push({
++              ...(e as PluginHookToolObservationEvent),
++              sessionId: (c as PluginHookToolContext).sessionId,
++            });
++          },
++        },
++      ]),
++    );
++    let resolveApproval!: () => void;
++    let terminal!: Promise<void>;
++    const decision = new Promise<void>((resolve) => {
++      resolveApproval = resolve;
++    });
++    await withToolObservation(
++      {
++        toolName: "exec",
++        toolCallId: "same",
++        params: { command: "printf one" },
++        ctx: { sessionId: "one", runId: "r" },
++      },
++      async () => {
++        await observeToolApproval({ phase: "approval_requested", requestId: "q" });
++        terminal = (async () => {
++          await decision;
++          await observeToolApproval({
++            phase: "approval_resolved",
++            requestId: "q",
++            decision: "allow-once",
++            scope: "once",
++            authority: "human",
++          });
++          await completeObservedTool({ ok: true });
++        })();
++        return { details: { status: "approval-pending" } };
++      },
++    );
++    await withToolObservation(
++      {
++        toolName: "exec",
++        toolCallId: "same",
++        params: { command: "printf two" },
++        ctx: { sessionId: "two", runId: "r" },
++      },
++      async () => ({ ok: true }),
++    );
++    expect(events.filter((e) => e.sessionId === "one").map((e) => e.phase)).toEqual([
++      "execution_started",
++      "approval_requested",
++    ]);
++    expect(events.filter((e) => e.sessionId === "two").map((e) => e.phase)).toEqual([
++      "execution_started",
++      "execution_completed",
++    ]);
++    resolveApproval();
++    await terminal;
++    expect(events.filter((e) => e.sessionId === "one").map((e) => e.phase)).toEqual([
++      "execution_started",
++      "approval_requested",
++      "approval_resolved",
++      "execution_completed",
++    ]);
++    expect(new Set(events.filter((e) => e.sessionId === "one").map((e) => e.actionId)).size).toBe(
++      1,
++    );
++  });
++  it("emits an exact allow-once decision before completion, without turning timeout into allow", async () => {
++    const events: unknown[] = [];
++    initializeGlobalHookRunner(
++      createMockPluginRegistry([
++        {
++          hookName: "tool_observation",
++          handler: async (e) => {
++            events.push(e);
++          },
++        },
++      ]),
++    );
++    await withToolObservation(
++      { toolName: "write", toolCallId: "c", params: { path: "target" }, ctx: { sessionId: "s" } },
++      async () => {
++        await observeToolApproval({
++          phase: "approval_resolved",
++          requestId: "q",
++          decision: "allow-once",
++          scope: "once",
++          authority: "human",
++        });
++        return { ok: true };
++      },
++    );
++    expect(events).toMatchObject([
++      { phase: "execution_started" },
++      { phase: "approval_resolved", decision: "allow-once", params: { path: "target" } },
++      { phase: "execution_completed", result: { ok: true } },
++    ]);
++  });
++  it("keeps failures after native process dispatch accountable", async () => {
++    const events: PluginHookToolObservationEvent[] = [];
++    initializeGlobalHookRunner(
++      createMockPluginRegistry([
++        {
++          hookName: "tool_observation",
++          handler: async (event) => {
++            events.push(event as PluginHookToolObservationEvent);
++          },
++        },
++      ]),
++    );
++    await expect(
++      withToolObservation(
++        {
++          toolName: "exec",
++          toolCallId: "failed",
++          params: { command: "exit 7" },
++          ctx: { sessionId: "s" },
++        },
++        async () => {
++          markObservedExecPreflight();
++          markObservedExecSpawn();
++          throw new Error("process exited with code 7");
++        },
++      ),
++    ).rejects.toThrow("process exited");
++    expect(events.at(-1)?.result).toEqual({ error: "Error: process exited with code 7" });
++  });
++});
+diff --git a/src/agents/aa-accountability.seam.e2e.test.ts b/src/agents/aa-accountability.seam.e2e.test.ts
+new file mode 100644
+index 0000000000..3acad02706
+--- /dev/null
++++ b/src/agents/aa-accountability.seam.e2e.test.ts
+@@ -0,0 +1,144 @@
++import fs from "node:fs";
++import os from "node:os";
++import path from "node:path";
++import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
++import {
++  initializeGlobalHookRunner,
++  resetGlobalHookRunner,
++} from "../plugins/hook-runner-global.js";
++import type { PluginHookToolObservationEvent } from "../plugins/hook-types.js";
++import { createMockPluginRegistry } from "../plugins/hooks.test-helpers.js";
++import { wrapToolWithBeforeToolCallHook } from "./agent-tools.before-tool-call.js";
++import { createExecTool } from "./bash-tools.exec.js";
++import type { AnyAgentTool } from "./tools/common.js";
++
++const gateway = vi.hoisted(() => vi.fn());
++vi.mock("./tools/gateway.js", () => ({ callGatewayTool: gateway }));
++
++describe("accountability observations from native generic approval dispatch", () => {
++  let events: PluginHookToolObservationEvent[];
++  beforeEach(() => {
++    events = [];
++    gateway.mockReset();
++    initializeGlobalHookRunner(
++      createMockPluginRegistry([
++        {
++          hookName: "before_tool_call",
++          pluginId: "approval-policy",
++          handler: async () => ({
++            requireApproval: { title: "Write", description: "Allow this write?" },
++          }),
++        },
++        {
++          hookName: "tool_observation",
++          handler: async (event) => {
++            events.push(event as PluginHookToolObservationEvent);
++          },
++        },
++      ]),
++    );
++  });
++  afterEach(resetGlobalHookRunner);
++  it.each(["allow-once", "allow-always", "deny", null])(
++    "records native decision %s and only runs allowed effects",
++    async (decision) => {
++      gateway.mockResolvedValueOnce({ id: "q1" }).mockResolvedValueOnce({ id: "q1", decision });
++      const effects: unknown[] = [];
++      const tool = wrapToolWithBeforeToolCallHook(
++        {
++          name: "write",
++          execute: async (_id: string, args: unknown) => {
++            effects.push(args);
++            return { content: [], details: { ok: true } };
++          },
++        } as AnyAgentTool,
++        { sessionId: "native-s1", runId: "r1" },
++        { emitDiagnostics: false },
++      );
++      try {
++        await tool.execute(
++          "call1",
++          { path: "workspace/a", content: "hello" },
++          undefined,
++          undefined,
++        );
++      } catch {
++        /* native denial is an error result */
++      }
++      const allowed = decision === "allow-once" || decision === "allow-always";
++      expect(effects).toHaveLength(allowed ? 1 : 0);
++      expect(events.map((e) => e.phase)).toEqual([
++        "execution_started",
++        "approval_requested",
++        "approval_resolved",
++        "execution_completed",
++      ]);
++      expect(events[2]).toMatchObject({
++        requestId: "q1",
++        decision: decision ?? "timeout",
++        scope: decision === "allow-always" ? "persistent" : "once",
++        authority: "human",
++        params: { path: "workspace/a", content: "hello" },
++      });
++      expect(new Set(events.map((e) => e.actionId)).size).toBe(1);
++      if (!allowed) expect(events[3].result).toHaveProperty("blocked");
++    },
++  );
++});
++
++describe("native exec prelaunch nonexecution", () => {
++  afterEach(resetGlobalHookRunner);
++  it.each(["security", "input", "elevation", "host", "node"])(
++    "records %s refusal without executing or fabricating an effect",
++    async (kind) => {
++      const events: PluginHookToolObservationEvent[] = [];
++      gateway.mockReset();
++      initializeGlobalHookRunner(
++        createMockPluginRegistry([
++          {
++            hookName: "tool_observation",
++            handler: async (event) => {
++              events.push(event as PluginHookToolObservationEvent);
++            },
++          },
++        ]),
++      );
++      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aa-refused-"));
++      try {
++        const target = path.join(dir, "effect");
++        const tool = wrapToolWithBeforeToolCallHook(
++          createExecTool({
++            host: kind === "node" ? "node" : "gateway",
++            security: kind === "security" ? "deny" : "full",
++            ask: "off",
++            cwd: dir,
++          }),
++          { sessionId: `refused-${kind}`, runId: "r" },
++          { emitDiagnostics: false },
++        );
++        const args =
++          kind === "input"
++            ? {}
++            : {
++                command: `printf attempted > ${target}`,
++                ...(kind === "elevation" ? { elevated: true } : {}),
++                ...(kind === "host" ? { host: "invalid-host" } : {}),
++              };
++        await expect(tool.execute(`call-${kind}`, args, undefined, undefined)).rejects.toThrow();
++        expect(fs.existsSync(target)).toBe(false);
++        expect(gateway).not.toHaveBeenCalled();
++        expect(events.map((e) => e.phase)).toEqual(["execution_started", "execution_completed"]);
++        expect(events.at(-1)?.result).toMatchObject({
++          blocked: { code: kind === "node" ? "unsupported-exec-host" : "exec-prelaunch" },
++        });
++        if (process.env.AA_TEST_OBSERVATIONS)
++          fs.appendFileSync(
++            process.env.AA_TEST_OBSERVATIONS,
++            JSON.stringify({ native_session_id: `refused-${kind}`, events }) + "\n",
++          );
++      } finally {
++        fs.rmSync(dir, { recursive: true, force: true });
++      }
++    },
++  );
++});

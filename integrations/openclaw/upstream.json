@@ -1,0 +1,87 @@
+{
+  "repository": "https://github.com/openclaw/openclaw",
+  "commit": "89c90210fb90c3c1d1bd54d56cd7be00e59aeed4",
+  "manifest_version": "2026.6.9",
+  "node_version": "24.19.0",
+  "package_manager": "pnpm@11.19.0",
+  "patch": {
+    "path": "patches/native-observation.patch",
+    "sha256": "ae5f71a22017be674774e833a7920966215e2119d6f5275dc0908bec231b40a8",
+    "required": true,
+    "checked_against_pinned_originals": true
+  },
+  "observed_paths": [
+    {
+      "path": "src/agents/agent-tools.before-tool-call.ts",
+      "boundary": "generic plugin approvals and effective tool dispatch arguments"
+    },
+    {
+      "path": "src/agents/bash-tools.exec-host-gateway.ts",
+      "boundary": "gateway exec requested/resolved, inline/deferred, matched durable policy, deferred terminal outcome"
+    },
+    {
+      "path": "src/agents/bash-tools.exec.ts",
+      "boundary": "known prelaunch nonexecution, unsupported node-host refusal, foreground and background process terminal outcome"
+    },
+    {
+      "path": "src/agents/tool-observation.ts",
+      "boundary": "native session/run/tool-call identity and awaited tool_observation hook"
+    }
+  ],
+  "validation": [
+    {
+      "command": "node scripts/run-vitest.mjs src/agents/tool-observation.test.ts src/agents/aa-accountability.seam.e2e.test.ts src/agents/bash-tools.exec-host-gateway.test.ts",
+      "passed": 71
+    },
+    {
+      "command": "node scripts/run-vitest.mjs src/agents/bash-tools.exec.background-abort.test.ts src/agents/bash-tools.exec-foreground-failures.test.ts",
+      "passed": 9
+    },
+    {
+      "command": "node scripts/run-vitest.mjs src/agents/bash-tools.exec-gateway-approval.e2e.test.ts",
+      "passed": 1,
+      "scope": "real isolated loopback gateway, native allow-once, actual printf; no model"
+    },
+    {
+      "command": "node scripts/run-tsgo.mjs -p tsconfig.core.json",
+      "result": "passed"
+    },
+    {
+      "command": "PYTHONPATH=packages/commons:packages/sdk:packages/store:packages/verifier .venv/bin/python -m pytest -q integrations/openclaw/tests",
+      "passed": 11
+    },
+    {
+      "command": "node --test integrations/openclaw/plugin/tests/hooks.test.ts",
+      "passed": 6
+    },
+    {
+      "command": "tsdown src/index.ts --format esm --out-dir dist",
+      "result": "passed",
+      "artifact": "plugin/dist/index.mjs"
+    },
+    {
+      "command": "AA_TEST_OBSERVATIONS=<fresh-jsonl> node scripts/run-vitest.mjs src/agents/aa-accountability.seam.e2e.test.ts; then from prototype root: PYTHONPATH=packages/commons:packages/sdk:packages/store:packages/verifier .venv/bin/python integrations/openclaw/tests/check_native_refusals.py <fresh-jsonl>",
+      "passed": 5,
+      "scope": "actual native security/input/elevation/host/node refusals consumed by Python AAP-1; zero violations"
+    }
+  ],
+  "not_verified": [
+    "live model conversations",
+    "production chat client approval UX",
+    "recovery after plugin/sidecar process crash"
+  ],
+  "unsupported": [
+    "node-host exec is refused before execution while accountability observation is active"
+  ],
+  "coverage_opening": "before_tool_call refuses any invocation whose helper session did not open; its observations are never replayed into later coverage",
+  "published_fork": {
+    "repository": "https://github.com/openclaw/openclaw",
+    "commit": "84f693f005fd0f0beb1f99c97b24c6e12d21e2e6",
+    "parent": "89c90210fb90c3c1d1bd54d56cd7be00e59aeed4",
+    "tree": "6cf7c7b0b536d0a2f1181f013a7ccde56abc5efe",
+    "branch": "research/accountability-2026-09-08",
+    "tag": "accountability-2026-09-08",
+    "patch_tree_equivalent": true,
+    "verification": "../PUBLISHED_FORKS.md"
+  }
+}

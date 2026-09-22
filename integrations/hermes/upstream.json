@@ -1,0 +1,137 @@
+{
+  "repository": "https://github.com/NousResearch/hermes-agent",
+  "commit": "5e01a5dbf1b7bc0144d9057be706da1ea9f065c3",
+  "manifest_version": "0.16.0",
+  "python_version": "Python 3.12.13",
+  "patch": {
+    "path": "patches/hermes-5e01a5d-native-authorization.patch",
+    "sha256": "4fdcbfc6818300061f201697e97c6982398823fc8b12f5a8f9f5ee73d791a46e",
+    "required": true,
+    "checked_against_pinned_originals": true,
+    "reproduces_patched_files_byte_for_byte": true,
+    "added_lines": 180,
+    "removed_lines": 37
+  },
+  "observed_paths": [
+    {
+      "path": "hermes_cli/middleware.py",
+      "line": 195,
+      "symbol": "run_tool_execution_middleware",
+      "boundary": "final tool_dispatch wrapper after mutable middleware, with immutable effective arguments"
+    },
+    {
+      "path": "model_tools.py",
+      "line": 876,
+      "symbol": "handle_function_call",
+      "boundary": "actual native structured edit approval and handler dispatch inside the final wrapper"
+    },
+    {
+      "path": "tools/approval.py",
+      "line": 61,
+      "symbol": "_fire_approval_hook",
+      "boundary": "native request/response correlation, raw decisions, and origin"
+    },
+    {
+      "path": "tools/approval.py",
+      "line": 865,
+      "symbol": "_observe_applied_policy",
+      "boundary": "per-invocation observation of reused session/permanent policy; automated origin preserved"
+    },
+    {
+      "path": "tools/approval.py",
+      "line": 1399,
+      "symbol": "check_all_command_guards",
+      "boundary": "actual terminal once/session/always/deny and stored-policy execution"
+    },
+    {
+      "path": "acp_adapter/permissions.py",
+      "line": 107,
+      "symbol": "make_approval_callback",
+      "boundary": "native ACP command request/option/session identity and timeout; controlled transport"
+    },
+    {
+      "path": "acp_adapter/edit_approval.py",
+      "line": 235,
+      "symbol": "make_acp_edit_approval_requester",
+      "boundary": "native ACP structured edit allow-once, deny, timeout, policy observation; actual write outcome"
+    },
+    {
+      "path": "agent/conversation_loop.py",
+      "line": 341,
+      "boundary": "on_session_start source inspected; hook invoked directly in integration tests"
+    },
+    {
+      "path": "agent/turn_finalizer.py",
+      "line": 416,
+      "boundary": "per-turn on_session_end source inspected; direct-hook test retains same accountability session"
+    },
+    {
+      "path": "cli.py",
+      "line": 1046,
+      "boundary": "on_session_finalize source inspected; direct-hook test defers closing until active dispatch finishes"
+    }
+  ],
+  "validation": [
+    {
+      "command": "scripts/run_tests.sh /workspace/agent_accountability_revision/integrations/hermes/tests/test_native_authorization.py tests/tools/test_approval_plugin_hooks.py tests/acp/test_edit_approval.py tests/acp/test_approval_isolation.py tests/tools/test_approval.py tests/tools/test_execute_code_approval_cluster.py tests/hermes_cli/test_plugins.py -- -q --tb=short",
+      "cwd": "hermes-agent",
+      "passed": 367,
+      "failed": 0,
+      "native_integration_cases": 18,
+      "upstream_regression_cases": 349,
+      "output": "tests/native-test-output.txt",
+      "scope": "Full native patch regression run before the subsequent adapter-only cross-thread lifecycle fix; that fix is retested below."
+    },
+    {
+      "command": "git apply --check against seven pristine git-show HEAD files, then git apply and byte comparison",
+      "result": "passed"
+    },
+    {
+      "command": "scripts/run_tests.sh /workspace/agent_accountability_revision/integrations/hermes/tests/test_native_authorization.py -- -q --tb=short",
+      "cwd": "hermes-agent",
+      "passed": 20,
+      "failed": 0,
+      "native_integration_cases": 20,
+      "output": "tests/native-lifecycle-test-output.txt",
+      "scope": "Final 20-case adapter run against SDK authorization schema_version=1 and strict invocation-schema validation; native patch unchanged.",
+      "authorization_schema_version": 1,
+      "protocol_source_sha256": {
+        "packages/sdk/aa_sdk/__init__.py": "9b44932c396c45b418394e4dbc29a82f834f0f054369b99d120199ab2ad89fee",
+        "packages/commons/aa_commons/predicates/no_destructive_without_consent.py": "2e74f0027c0d0dfff0b924aad4b36fe2d8b80b6b2ffb2c110efbc99786e3576a"
+      }
+    }
+  ],
+  "test_controls": [
+    "user decision callbacks",
+    "ACP transport responses on a real asynchronous loop",
+    "automated-review verdicts",
+    "optional external tirith scanner returns allow",
+    "direct registration into live plugin manager rather than plugin discovery",
+    "injected SDK finalization failure before retry",
+    "injected native dispatcher error after a real file write"
+  ],
+  "not_verified": [
+    "live model conversations or production chat approval UI",
+    "plugin discovery",
+    "full execute_code sandbox runtime",
+    "native plugin transactions on chain in these tests",
+    "all gateway/cron/subagent/MCP entry points",
+    "recovery after plugin process crash",
+    "filesystem effects inferred from opaque terminal or code strings"
+  ],
+  "verified_unique_cases": {
+    "native_integration": 20,
+    "unchanged_upstream_regressions": 349,
+    "total": 369
+  },
+  "published_fork": {
+    "repository": "https://github.com/NousResearch/hermes-agent",
+    "commit": "9801de7052b9f746791f96600ea19b9399de4b13",
+    "parent": "5e01a5dbf1b7bc0144d9057be706da1ea9f065c3",
+    "tree": "0c0fe75966cf74db5cf1f5569455de584829bc19",
+    "branch": "research/accountability-2026-09-08",
+    "tag": "accountability-2026-09-08",
+    "patch_tree_equivalent": true,
+    "verification": "../PUBLISHED_FORKS.md"
+  }
+}
