@@ -105,7 +105,7 @@ def register_shipped_promises() -> tuple[dict[str, Accountability], list[dict[st
                 "recipient_key": recipient_key,
             }
             promise_id = accountability.register_promise(
-                PREDICATE, params, payout_wei=0, gated=False
+                PREDICATE, params, payout_wei=0  # `gated` was removed from the SDK on 2026-09-08; replay does not gate
             )
             promise = accountability.promises[-1]
             manifest.append(
