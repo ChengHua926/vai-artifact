@@ -53,15 +53,20 @@ from aa_sdk.chain import EscrowClient
 
 verify_package_origins()
 ARTIFACT = os.path.join(REPO, "contracts", "out", "Escrow.sol", "Escrow.json")
-SECRETS = os.path.join(REPO, "secrets")
+SECRETS = os.environ.get("AA_SECRETS_DIR", os.path.join(REPO, "secrets"))
+KEYSTORE_DIR = os.environ.get("AA_KEYSTORE_DIR")
 
 LOCAL = os.environ.get("AA_LOCAL", "1") == "1"
-CHAIN_ID = 31337 if LOCAL else 84532
+CHAIN_ID = int(os.environ.get("AA_CHAIN_ID", "31337" if LOCAL else "84532"))
+if (LOCAL and CHAIN_ID != 31337) or (not LOCAL and CHAIN_ID not in (8453, 84532)):
+    raise ValueError("AA_LOCAL and AA_CHAIN_ID must select Anvil, Base, or Base Sepolia")
 RUNTIME = os.path.join(REPO, "_runtime", str(CHAIN_ID))
 DEPLOYMENT = os.environ.get("AA_DEPLOYMENT", os.path.join(RUNTIME, "deployment.json"))
-RPC_URL = os.environ.get("AA_RPC_URL", "http://127.0.0.1:8545" if LOCAL else "https://sepolia.base.org")
+RPC_URL = os.environ.get("AA_RPC_URL", {31337: "http://127.0.0.1:8545",
+    8453: "https://mainnet.base.org", 84532: "https://sepolia.base.org"}[CHAIN_ID])
 STORE_URL = os.environ.get("STORE_URL", "http://127.0.0.1:8000")
-EXPLORER = None if LOCAL else "https://sepolia.basescan.org"
+EVIDENCE_URL = os.environ.get("EVIDENCE_URL", "http://127.0.0.1:8001")
+EXPLORER = {31337: None, 8453: "https://basescan.org", 84532: "https://sepolia.basescan.org"}[CHAIN_ID]
 
 # tiny demo amounts (wei)
 BOND = 3 * 10**14
@@ -91,6 +96,18 @@ def _remote_wallet(path: str):
     return declared, account
 
 
+def _wallet(role):
+    if KEYSTORE_DIR is None:
+        return _remote_wallet(os.path.join(SECRETS, _WALLET_FILES[role]))
+    from eth_account import Account
+    key = Path(KEYSTORE_DIR) / f"{role}.json"
+    password = Path(KEYSTORE_DIR) / f"{role}.password"
+    if key.stat().st_mode & 0o077 or password.stat().st_mode & 0o077:
+        raise ValueError("wallet files must have private permissions")
+    account = Account.from_key(Account.decrypt(json.loads(key.read_text()), password.read_text().strip()))
+    return account.address, account
+
+
 def actors(connected_w3: Web3) -> dict:
     """{role: (address, account_or_None)} for deployer/provider/challenger/verifier.
     LOCAL: anvil's unlocked accounts (account=None -> the .transact path). REMOTE: funded toy wallets."""
@@ -99,34 +116,43 @@ def actors(connected_w3: Web3) -> dict:
         a = connected_w3.eth.accounts
         ver = a[3]
         return {"deployer": (ver, None), "provider": (a[1], None), "challenger": (a[2], None), "verifier": (ver, None)}
-    out = {role: _remote_wallet(os.path.join(SECRETS, f)) for role, f in _WALLET_FILES.items()}
+    out = {role: _wallet(role) for role in _WALLET_FILES}
     out["deployer"] = out["verifier"]   # owner == verifier (the protocol operator)
     return out
 
 
-def verifier_actors(connected_w3: Web3, deployment: dict | None = None) -> dict:
-    """Verifier process: one signing key; other actor identities come from deployment metadata."""
+def _role_actors(connected_w3, role, deployment=None):
+    """Load only this process's signing key; other roles are public metadata."""
     verify_package_origins()
     if connected_w3.eth.chain_id != CHAIN_ID:
         raise ValueError("connected chain does not match deployment configuration")
     deployment = load_deployment() if deployment is None else deployment
     if deployment.get("chain_id") != CHAIN_ID:
-        raise ValueError("deployment chain does not match verifier configuration")
-    addresses = {role: Web3.to_checksum_address(deployment[f"{role}_addr"])
-                 for role in ("provider", "challenger", "verifier")}
+        raise ValueError("deployment chain does not match role configuration")
+    addresses = {name: Web3.to_checksum_address(deployment[f"{name}_addr"])
+                 for name in ("provider", "challenger", "verifier")}
     if len(set(addresses.values())) != 3:
         raise ValueError("provider, challenger and verifier must be separate roles")
     if LOCAL:
-        if addresses["verifier"] not in connected_w3.eth.accounts:
-            raise ValueError("deployment verifier is not an unlocked local account")
-        signer = (addresses["verifier"], None)
+        if addresses[role] not in connected_w3.eth.accounts:
+            raise ValueError(f"deployment {role} is not an unlocked local account")
+        signer = (addresses[role], None)
     else:
-        signer = _remote_wallet(os.path.join(SECRETS, _WALLET_FILES["verifier"]))
-        if signer[0] != addresses["verifier"]:
-            raise ValueError("configured verifier differs from deployment")
-    return {"provider": (addresses["provider"], None),
-            "challenger": (addresses["challenger"], None),
-            "verifier": signer, "deployer": signer}
+        signer = _wallet(role)
+        if signer[0] != addresses[role]:
+            raise ValueError(f"configured {role} differs from deployment")
+    out = {name: (address, None) for name, address in addresses.items()}
+    out[role] = signer
+    out["deployer"] = out["verifier"]
+    return out
+
+
+def verifier_actors(connected_w3, deployment=None):
+    return _role_actors(connected_w3, "verifier", deployment)
+
+
+def provider_actors(connected_w3, deployment=None):
+    return _role_actors(connected_w3, "provider", deployment)
 
 
 def accounts_map(actors_dict: dict) -> dict:
@@ -191,6 +217,14 @@ def verifier_cursor_path(deployment: dict) -> str:
     if not re.fullmatch(r"[0-9a-f]{32}", identity):
         raise ValueError("invalid deployment identity")
     return os.path.join(RUNTIME, f"verifier-{address}-{identity}.cursor")
+
+
+def provider_cursor_path(deployment):
+    return verifier_cursor_path(deployment).replace("verifier-", "provider-")
+
+
+def evidence_inbox_path(deployment):
+    return os.environ.get("EVIDENCE_DB", verifier_cursor_path(deployment).replace(".cursor", ".inbox.sqlite3"))
 
 
 def addr_url(a: str) -> str:

@@ -111,10 +111,12 @@ class EscrowClient:
         sender = Web3.to_checksum_address(sender)
         with _sender_lock(self.w3, sender):
             if sender in self.accounts:
-                tx = {"from": sender, "value": value,
-                      "nonce": self.w3.eth.get_transaction_count(sender, "pending")}
+                nonce = self.w3.eth.get_transaction_count(sender, "pending")
+                if nonce != self.w3.eth.get_transaction_count(sender, "latest"):
+                    raise RuntimeError("sender has a pending transaction; reconcile it before sending another")
+                tx = {"from": sender, "value": value, "nonce": nonce}
                 # build_transaction otherwise estimates at implicit latest, which can predate
-                # a just-confirmed prerequisite (for example challenge before respond).
+                # a just-confirmed prerequisite (for example a challenge before its verdict).
                 tx["gas"] = self._read(lambda block: fn.estimate_gas(tx, block_identifier=block))
                 tx = fn.build_transaction(tx)
                 h = self.w3.eth.send_raw_transaction(self.accounts[sender].sign_transaction(tx).raw_transaction)
@@ -173,16 +175,6 @@ class EscrowClient:
             return out
         return self._read(read_at_block)
 
-    def respond(self, sender: str, challenge_id: int):
-        """Provider's on-chain 'the trace is available' — turns off the default path."""
-        return self._send(self.contract.functions.respond(challenge_id), sender)
-
-    def claim_default(self, sender: str, challenge_id: int):
-        """The store rule: silence past the response window settles the challenge as a violation."""
-        rcpt = self._send(self.contract.functions.claimDefault(challenge_id), sender)
-        ev = self.contract.events.DefaultClaimed().process_receipt(rcpt, errors=DISCARD)
-        return ev[0]["args"]  # {challengeId, paidToChallenger}
-
     def withdraw_challenge(self, sender: str, challenge_id: int):
         """Challenger exit (bond back, no slash) when no verdict can come."""
         return self._send(self.contract.functions.withdrawChallenge(challenge_id), sender)
@@ -214,7 +206,7 @@ class EscrowClient:
 
     def get_challenge(self, challenge_id: int):
         fn = self.contract.functions.challenges(challenge_id)
-        return self._read(lambda block: fn.call(block_identifier=block))  # (sessionId, promiseId, challenger, bond, status, challengedAt, respondedAt)
+        return self._read(lambda block: fn.call(block_identifier=block))  # (sessionId, promiseId, challenger, bond, status, challengedAt)
 
     def check_coverage(self, session_id: str, party: str, promise_ids: list) -> dict:
         """The harness-side receipt check — everything a party wants to know at session start,

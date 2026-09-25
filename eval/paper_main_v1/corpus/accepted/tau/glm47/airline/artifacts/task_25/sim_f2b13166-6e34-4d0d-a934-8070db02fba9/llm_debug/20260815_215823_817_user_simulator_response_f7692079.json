@@ -1,0 +1,232 @@
+{
+  "call_id": "f7692079",
+  "call_name": "user_simulator_response",
+  "timestamp": "2026-08-15T21:58:23.817514",
+  "request": {
+    "model": "openrouter/openai/gpt-4.1-mini",
+    "messages": [
+      {
+        "role": "system",
+        "content": [
+          "# User Simulation Guidelines",
+          "You are playing the role of a customer contacting a customer service representative. ",
+          "Your goal is to simulate realistic customer interactions while following specific scenario instructions.",
+          "",
+          "## Core Principles",
+          "- Generate one message at a time, maintaining natural conversation flow.",
+          "- Strictly follow the scenario instructions you have received.",
+          "- Never make up or hallucinate information not provided in the scenario instructions. Information that is not provided in the scenario instructions should be considered unknown or unavailable.",
+          "- Avoid repeating the exact instructions verbatim. Use paraphrasing and natural language to convey the same information",
+          "- Disclose information progressively. Wait for the agent to ask for specific information before providing it.",
+          "",
+          "## Task Completion",
+          "- The goal is to continue the conversation until the task is complete.",
+          "- If the instruction goal is satisified, generate the '###STOP###' token to end the conversation.",
+          "- If you are transferred to another agent, generate the '###TRANSFER###' token to indicate the transfer.",
+          "- If you find yourself in a situation in which the scenario does not provide enough information for you to continue the conversation, generate the '###OUT-OF-SCOPE###' token to end the conversation.",
+          "Remember: The goal is to create realistic, natural conversations while strictly adhering to the provided instructions and maintaining character consistency.",
+          "",
+          "",
+          "<scenario>",
+          "Instructions:",
+          "\tDomain: airline",
+          "\tReason for call:",
+          "\t\tYou want to make a reservation for your friend. It should be exactly the same as your current reservation.",
+          "\tKnown info:",
+          "\t\tYou are Ivan Muller.",
+          "",
+          "\t\tYour user id is ivan_muller_7015.",
+          "",
+          "\t\tYour friends name is Ivan Smith.",
+          "",
+          "\t\tHe is listed in your user profile.",
+          "\tUnknown info:",
+          "\t\tYou can't remember Ivan Smith's DOB but it is in your profile.",
+          "\tTask instructions:",
+          "\t\tYou want to use your certificate and know how much certificate balance will be left. You will ONLY accept a new booking with just him as the passenger. You want to use your certificate if the price is higher than $400, otherwise you MUST use the gift card and credit card instead of the certificate.",
+          "",
+          "\t\tNo baggage and insurance.",
+          "</scenario>"
+        ]
+      },
+      {
+        "role": "user",
+        "content": "Hi! How can I help you today?"
+      },
+      {
+        "role": "assistant",
+        "content": "Hello! I\u2019d like to make a reservation for my friend, Ivan Smith. I want the booking to be exactly the same as my current reservation. Also, I want to use my certificate if the price is higher than $400; otherwise, I\u2019ll use my gift card and credit card. Could you help me with that?",
+        "tool_calls": null
+      },
+      {
+        "role": "user",
+        "content": [
+          "I'd be happy to help you book a reservation for your friend that's similar to your current one! ",
+          "",
+          "To get started, I'll need your user ID so I can look up your current reservation details. Could you please provide your user ID?"
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": "Sure, my user ID is ivan_muller_7015.",
+        "tool_calls": null
+      },
+      {
+        "role": "user",
+        "content": [
+          "I found your current reservation and the same flights are available. Here's the booking summary for Ivan Smith:",
+          "",
+          "**Booking Details:**",
+          "- **Route:** Detroit (DTW) \u2192 Seattle (SEA) - One way",
+          "- **Cabin:** Economy",
+          "- **Flights:**",
+          "  1. HAT097: DTW \u2192 PHX on May 17, 2024 (7:00 AM - 11:00 AM EST)",
+          "  2. HAT251: PHX \u2192 SEA on May 17, 2024 (12:00 PM - 3:00 PM EST)",
+          "- **Passenger:** Ivan Smith (DOB: 1986-03-14)",
+          "- **Baggage:** 2 total bags (0 extra - within your free allowance as a gold member)",
+          "- **Insurance:** Yes ($30)",
+          "",
+          "**Cost Breakdown:**",
+          "- Flight costs: $375",
+          "- Travel insurance: $30",
+          "- **Total: $405**",
+          "",
+          "**Payment:**",
+          "Since the total is $405 (higher than $400), you'll use your certificate:",
+          "- Certificate: certificate_8998287 ($500)",
+          "- Remaining balance after booking: $95",
+          "",
+          "**Please confirm:** Do you want me to proceed with booking this reservation for Ivan Smith with the above details? Please respond with \"yes\" to confirm."
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you for the summary. However, I do not want any baggage or insurance included in the booking. Could you please update the booking without baggage and insurance and let me know the new total cost and payment details?",
+        "tool_calls": null
+      },
+      {
+        "role": "user",
+        "content": [
+          "Understood! Here's the updated booking summary without baggage and insurance:",
+          "",
+          "**Booking Details:**",
+          "- **Route:** Detroit (DTW) \u2192 Seattle (SEA) - One way",
+          "- **Cabin:** Economy",
+          "- **Flights:**",
+          "  1. HAT097: DTW \u2192 PHX on May 17, 2024 (7:00 AM - 11:00 AM EST)",
+          "  2. HAT251: PHX \u2192 SEA on May 17, 2024 (12:00 PM - 3:00 PM EST)",
+          "- **Passenger:** Ivan Smith (DOB: 1986-03-14)",
+          "- **Baggage:** 0 total bags",
+          "- **Insurance:** No",
+          "",
+          "**Cost Breakdown:**",
+          "- Flight costs: $375",
+          "- Travel insurance: $0",
+          "- **Total: $375**",
+          "",
+          "**Payment:**",
+          "Since the total is $375 (lower than $400), you'll use your gift card and credit card:",
+          "- Gift card: gift_card_8516878 ($128)",
+          "- Credit card: credit_card_3563913 ($247 remaining)",
+          "",
+          "**Please confirm:** Do you want me to proceed with booking this reservation for Ivan Smith with the above details? Please respond with \"yes\" to confirm."
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": "Yes, please go ahead and proceed with the booking for Ivan Smith using the gift card and credit card as outlined. Thank you!",
+        "tool_calls": null
+      },
+      {
+        "role": "user",
+        "content": [
+          "Your booking is confirmed! Here are the details:",
+          "",
+          "**Reservation Confirmation**",
+          "- **Reservation ID:** HATHAT",
+          "- **Passenger:** Ivan Smith",
+          "- **Route:** Detroit (DTW) \u2192 Seattle (SEA) - One way",
+          "- **Cabin:** Economy",
+          "- **Flights:**",
+          "  1. HAT097: DTW \u2192 PHX on May 17, 2024 (7:00 AM - 11:00 AM EST)",
+          "  2. HAT251: PHX \u2192 SEA on May 17, 2024 (12:00 PM - 3:00 PM EST)",
+          "- **Baggage:** 0 checked bags",
+          "- **Insurance:** No",
+          "- **Total Paid:** $375",
+          "  - Gift card: $128",
+          "  - Credit card: $247",
+          "",
+          "The booking has been successfully completed. Is there anything else I can help you with?"
+        ]
+      }
+    ],
+    "tools": null,
+    "tool_choice": null,
+    "kwargs": {
+      "temperature": 0.0,
+      "seed": 626729,
+      "num_retries": 3,
+      "extra_body": "{'provider': {'order': ['openai'], 'allow_fallbacks': False}}"
+    },
+    "requested_provider_tag": "openai",
+    "response_model": "openai/gpt-4.1-mini",
+    "endpoint_revision": "openai/gpt-4.1-mini-2025-04-14",
+    "expected_served_model": "openai/gpt-4.1-mini",
+    "timestamp": "2026-08-15T21:58:23.142812"
+  },
+  "response": {
+    "timestamp": "2026-08-15T21:58:23.817092",
+    "generation_time_seconds": 0.6740055420086719,
+    "raw_response": {
+      "id": "gen-1786845503-Jx6fAWa77fFQ7vVaCwyd",
+      "created": 1786845503,
+      "model": "openai/gpt-4.1-mini",
+      "object": "chat.completion",
+      "system_fingerprint": null,
+      "choices": [
+        {
+          "finish_reason": "stop",
+          "index": 0,
+          "message": {
+            "content": "No, that's all for now. Thank you very much for your help! Have a great day! \n\n###STOP###",
+            "role": "assistant",
+            "tool_calls": null,
+            "function_call": null,
+            "provider_specific_fields": {
+              "reasoning": null,
+              "refusal": null
+            }
+          },
+          "provider_specific_fields": {
+            "native_finish_reason": "completed"
+          }
+        }
+      ],
+      "usage": {
+        "completion_tokens": 25,
+        "prompt_tokens": 1396,
+        "total_tokens": 1421,
+        "completion_tokens_details": {
+          "audio_tokens": 0,
+          "reasoning_tokens": 0,
+          "image_tokens": 0
+        },
+        "prompt_tokens_details": {
+          "audio_tokens": 0,
+          "cached_tokens": 0,
+          "video_tokens": 0,
+          "cache_write_tokens": 0
+        },
+        "cost": 0.0005984,
+        "is_byok": false,
+        "cost_details": {
+          "upstream_inference_cost": 0.0005984,
+          "upstream_inference_prompt_cost": 0.0005584,
+          "upstream_inference_completions_cost": 4e-05
+        }
+      },
+      "provider": "OpenAI",
+      "service_tier": "default"
+    }
+  }
+}

@@ -69,7 +69,7 @@ def test_mined_revert_is_not_success():
         chain._send(fn, ADDRESS)
 
 
-class NewlyOpenedChallengeResponse:
+class VerdictOnNewlyOpenedChallenge:
     """Model the observed Base failure: latest lacks the just-confirmed challenge."""
     def __init__(self, failures=()):
         self.failures = list(failures)
@@ -95,10 +95,10 @@ class NewlyOpenedChallengeResponse:
 def test_keyed_gas_estimate_uses_confirmed_challenge_block_and_explicit_gas():
     chain, previous_fn, eth = client_and_function()
     chain._send(previous_fn, ADDRESS)  # challenge confirmed at 12; RPC head still says 9
-    response = NewlyOpenedChallengeResponse()
-    chain._send(response, ADDRESS, value=7)
-    assert response.estimates == [({"from": ADDRESS, "value": 7, "nonce": 1}, 12)]
-    assert response.built == [{"from": ADDRESS, "value": 7, "nonce": 1, "gas": 73123}]
+    verdict = VerdictOnNewlyOpenedChallenge()
+    chain._send(verdict, ADDRESS, value=7)
+    assert verdict.estimates == [({"from": ADDRESS, "value": 7, "nonce": 1}, 12)]
+    assert verdict.built == [{"from": ADDRESS, "value": 7, "nonce": 1, "gas": 73123}]
     assert eth.nonces == [0, 1]  # exactly one broadcast for each operation
 
 
@@ -108,19 +108,41 @@ def test_missing_estimate_block_retries_before_single_broadcast(monkeypatch):
     sleeps = []
     monkeypatch.setattr("aa_sdk.chain.time.sleep", sleeps.append)
     detail = {"code": -32001, "message": "block not found: 0xc"}
-    response = NewlyOpenedChallengeResponse([Web3RPCError(str(detail), rpc_response={"error": detail})])
-    chain._send(response, ADDRESS)
-    assert [block for _, block in response.estimates] == [12, 12]
+    verdict = VerdictOnNewlyOpenedChallenge([Web3RPCError(str(detail), rpc_response={"error": detail})])
+    chain._send(verdict, ADDRESS)
+    assert [block for _, block in verdict.estimates] == [12, 12]
     assert sleeps == [0.5]
-    assert len(response.built) == 1 and eth.nonces == [0, 1]
+    assert len(verdict.built) == 1 and eth.nonces == [0, 1]
 
 
 def test_revert_at_explicit_estimate_block_propagates_without_broadcast(monkeypatch):
     chain, previous_fn, eth = client_and_function()
     chain._send(previous_fn, ADDRESS)
     monkeypatch.setattr("aa_sdk.chain.time.sleep", lambda _: pytest.fail("unexpected retry"))
-    response = NewlyOpenedChallengeResponse([ContractLogicError("execution reverted: not open")])
+    verdict = VerdictOnNewlyOpenedChallenge([ContractLogicError("execution reverted: not open")])
     with pytest.raises(ContractLogicError, match="not open"):
-        chain._send(response, ADDRESS)
-    assert len(response.estimates) == 1 and response.estimates[0][1] == 12
-    assert response.built == [] and eth.nonces == [0]
+        chain._send(verdict, ADDRESS)
+    assert len(verdict.estimates) == 1 and verdict.estimates[0][1] == 12
+    assert verdict.built == [] and eth.nonces == [0]
+
+
+def test_previous_pending_transaction_prevents_new_broadcast():
+    chain, fn, eth = client_and_function()
+    eth.get_transaction_count = lambda address, tag: 1 if tag == 'pending' else 0
+    with pytest.raises(RuntimeError, match='pending transaction'):
+        chain._send(fn, ADDRESS)
+    assert eth.nonces == []
+
+
+def test_uncertain_receipt_is_not_retried_at_the_next_nonce():
+    chain, fn, eth = client_and_function()
+    confirmed = 0
+    eth.get_transaction_count = lambda address, tag: eth.nonce if tag == 'pending' else confirmed
+    def timeout(tx):
+        raise TimeoutError('receipt has not arrived')
+    eth.wait_for_transaction_receipt = timeout
+    with pytest.raises(TimeoutError):
+        chain._send(fn, ADDRESS)
+    with pytest.raises(RuntimeError, match='pending transaction'):
+        chain._send(fn, ADDRESS)
+    assert eth.nonces == [0]

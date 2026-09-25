@@ -1,30 +1,32 @@
-"""Trace store — the protocol's neutral data layer (centralized, trusted, prototype).
+"""Private provider trace store (FastAPI + SQLite prototype).
 
 Holds DATA only; never funds. The SDK ships each action record here as it happens; at session
 end it reads them back and commits their hash on chain, so the per-action records held here ARE
-the trace — there is no second copy. The verifier fetches the same records by session id and
-recomputes the hash against the on-chain commitment. Records are append-only and
+the trace — there is no second copy. The provider retrieves records to submit claim-specific
+evidence to the verifier. The verifier is not given this store's token. Records are append-only and
 first-write-wins, so once a record lands neither the agent nor a later request can rewrite it
 here; the on-chain hash stays the only integrity root (this store narrows how long evidence sits
 inside the agent's process; it never adjudicates). Swap SQLite -> Postgres/Neon later by
 changing one connection string; nothing else moves.
 
+Set a private STORE_TOKEN for this service and the provider SDK. Every data endpoint requires
+Authorization: Bearer <STORE_TOKEN>; /health is public. Use HTTPS for a remote deployment.
 Run:  uvicorn app:app --port 8000        (from packages/store/)
   POST /sessions/{id}/records  <- SDK ships one ActionRecord dict per action, at action time
-  GET  /sessions/{id}/records  -> seq-ordered list: the SDK reads it back to commit, the verifier
-                                  to adjudicate, an operator to recover a crashed session
+  GET  /sessions/{id}/records  -> seq-ordered list for provider commitment, recovery, and claims
   PUT  /promises/{id}          <- SDK ships {predicate, params} at registration
-  GET  /promises/{id}          -> verifier fetches the params (the predicate id is only a hint;
-                                  the on-chain predicateHash decides which predicate runs)
+  GET  /promises/{id}          -> provider retrieves parameters for a claim response
 """
 from __future__ import annotations
 
 import json
 import os
 import sqlite3
+import hmac
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 
 DB = os.environ.get("STORE_DB", os.path.join(os.path.dirname(os.path.abspath(__file__)), "trace_store.db"))
@@ -39,6 +41,17 @@ def _db() -> sqlite3.Connection:
 
 
 app = FastAPI(title="aa-trace-store")
+_bearer = HTTPBearer(auto_error=False)
+
+
+def require_provider(credentials: HTTPAuthorizationCredentials | None = Depends(_bearer)):
+    """Keep all provider data private, including when deployment configuration is missing."""
+    token = os.environ.get("STORE_TOKEN")
+    if not token or not token.strip():
+        raise HTTPException(status_code=503, detail="store authentication is not configured")
+    if credentials is None or not hmac.compare_digest(credentials.credentials.encode(), token.encode()):
+        raise HTTPException(status_code=401, detail="provider authentication required",
+                            headers={"WWW-Authenticate": "Bearer"})
 
 
 class Record(BaseModel):
@@ -51,7 +64,7 @@ class Record(BaseModel):
     metadata: dict | None = None
 
 
-@app.post("/sessions/{session_id}/records")
+@app.post("/sessions/{session_id}/records", dependencies=[Depends(require_provider)])
 def append_record(session_id: str, record: Record):
     """Append-only, first-write-wins: a retry of the same seq is a no-op, and a different
     payload for an existing seq is ignored rather than applied — nothing rewrites a landed
@@ -67,7 +80,7 @@ def append_record(session_id: str, record: Record):
     return {"ok": True, "session_id": session_id, "seq": record.seq}
 
 
-@app.get("/sessions/{session_id}/records")
+@app.get("/sessions/{session_id}/records", dependencies=[Depends(require_provider)])
 def get_records(session_id: str):
     """The session's trace, in seq order (an empty list for an unknown session — whether that
     is "nothing shipped" or "no actions" is decided by the on-chain hash, not here)."""
@@ -83,7 +96,7 @@ class PromiseRecord(BaseModel):
     params: dict     # the promise parameters (verifier re-hashes these to paramsHash)
 
 
-@app.put("/promises/{promise_id}")
+@app.put("/promises/{promise_id}", dependencies=[Depends(require_provider)])
 def put_promise(promise_id: str, record: PromiseRecord):
     conn = _db()
     conn.execute("INSERT OR REPLACE INTO promises VALUES (?, ?)", (promise_id, record.model_dump_json()))
@@ -92,7 +105,7 @@ def put_promise(promise_id: str, record: PromiseRecord):
     return {"ok": True, "promise_id": promise_id}
 
 
-@app.get("/promises/{promise_id}")
+@app.get("/promises/{promise_id}", dependencies=[Depends(require_provider)])
 def get_promise(promise_id: str):
     conn = _db()
     row = conn.execute("SELECT payload FROM promises WHERE promise_id = ?", (promise_id,)).fetchone()
@@ -107,7 +120,7 @@ def health():
     return {"ok": True}
 
 
-@app.get("/inventory")
+@app.get("/inventory", dependencies=[Depends(require_provider)])
 def inventory():
     """Counts for a deployment preflight; no trace contents are returned."""
     conn = _db()

@@ -1,1 +1,0 @@
-"""ClawsBench analysis package."""

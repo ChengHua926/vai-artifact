@@ -141,15 +141,15 @@ contract EscrowTest is Test {
         escrow.challenge{value: CBOND}(SID, pid);
     }
 
-    function test_satisfied_final_trace_cannot_be_rechallenged_for_default_payout() public {
+    function test_satisfied_final_trace_cannot_be_rechallenged() public {
         uint256 pid = _promiseSession();
         vm.prank(challenger);
         uint256 cid = escrow.challenge{value: CBOND}(SID, pid);
         vm.prank(verifier);
         escrow.submitVerdict(cid, false);
 
-        // A later outage must not turn the same cleared trace into a default payout.
-        vm.warp(block.timestamp + escrow.RESPONSE_WINDOW() + 1);
+        // A cleared final trace cannot be reopened, even after the verdict window.
+        vm.warp(block.timestamp + escrow.VERDICT_WINDOW() + 1);
         vm.prank(challenger);
         vm.expectRevert(bytes("pair already resolved"));
         escrow.challenge{value: CBOND}(SID, pid);
@@ -160,28 +160,28 @@ contract EscrowTest is Test {
         assertEq(escrow.openChallenges(pid), 0, "no new challenge pins the reserve");
     }
 
-    function test_nonfinal_satisfaction_does_not_clear_the_eventual_trace() public {
+    function test_satisfied_verdict_requires_final_trace() public {
         uint256 pid = _register(10 * PAYOUT);
         vm.startPrank(provider);
         escrow.openSession(SID, challenger);
         escrow.checkpointTrace(SID, 1, keccak256("incomplete prefix"));
         vm.stopPrank();
         vm.prank(challenger);
-        uint256 first = escrow.challenge{value: CBOND}(SID, pid);
-        vm.prank(verifier);
-        escrow.submitVerdict(first, false);
+        uint256 cid = escrow.challenge{value: CBOND}(SID, pid);
 
-        // No verdict about an unfinished session may clear actions recorded later.
-        vm.prank(provider);
-        escrow.commitTrace(SID, TRACE);
-        vm.prank(challenger);
-        uint256 later = escrow.challenge{value: CBOND}(SID, pid);
+        // Without a final commitment no evidence can match it, so only a violation can settle.
+        vm.prank(verifier);
+        vm.expectRevert(bytes("trace not final"));
+        escrow.submitVerdict(cid, false);
+
         uint256 before = challenger.balance;
         vm.prank(verifier);
-        escrow.submitVerdict(later, true);
-        assertEq(challenger.balance, before + PAYOUT + CBOND);
+        escrow.submitVerdict(cid, true);
+        assertEq(challenger.balance, before + PAYOUT + CBOND, "missing final evidence pays");
+        vm.prank(challenger);
+        vm.expectRevert(bytes("pair already resolved"));
+        escrow.challenge{value: CBOND}(SID, pid);
     }
-
     function test_satisfied_pair_does_not_clear_other_sessions_or_promises() public {
         uint256 pid = _register(10 * PAYOUT);
         uint256 otherPid = _register(10 * PAYOUT);
@@ -230,54 +230,45 @@ contract EscrowTest is Test {
 
         vm.prank(challenger);
         uint256 cid = escrow.challenge{value: CBOND}(SID, pid);
-        (, , , , Escrow.Status st, , ) = escrow.challenges(cid);
+        (, , , , Escrow.Status st, ) = escrow.challenges(cid);
         assertEq(uint256(st), uint256(Escrow.Status.Open));
     }
 
-    // ── availability: respond / claimDefault / withdrawChallenge ─────────────
+    // ── missing evidence and challenger exit ──────────────────────────────────
 
-    function test_claim_default_after_silence() public {
+    function test_missing_evidence_violation_pays_without_provider_action() public {
         uint256 pid = _promiseSession();
         vm.prank(challenger);
         uint256 cid = escrow.challenge{value: CBOND}(SID, pid);
         uint256 challengerBefore = challenger.balance;
 
-        vm.warp(block.timestamp + escrow.RESPONSE_WINDOW() + 1);
-        escrow.claimDefault(cid);                          // callable by anyone; pays the challenger
+        // The verifier's deadline is off chain; the contract takes its verdict at any time.
+        vm.warp(block.timestamp + 3 days + 1);
+        vm.prank(verifier);
+        escrow.submitVerdict(cid, true);
 
-        assertEq(challenger.balance, challengerBefore + PAYOUT + CBOND, "default pays like a violation");
+        assertEq(challenger.balance, challengerBefore + PAYOUT + CBOND, "violation pays payout plus bond");
         (, , , , uint256 reserve, , ) = escrow.promises(pid);
-        assertEq(reserve, 9 * PAYOUT, "reserve drained");
+        assertEq(reserve, 9 * PAYOUT, "reserve drained by one payout");
+        assertEq(escrow.openChallenges(pid), 0, "counter closed");
     }
-
-    function test_claim_default_blocked_inside_window_and_after_respond() public {
-        uint256 pid = _promiseSession();
-        vm.prank(challenger);
-        uint256 cid = escrow.challenge{value: CBOND}(SID, pid);
-
-        vm.expectRevert(bytes("response window open"));
-        escrow.claimDefault(cid);
-
-        vm.prank(provider);
-        escrow.respond(cid);
-        vm.warp(block.timestamp + escrow.RESPONSE_WINDOW() + 1);
-        vm.expectRevert(bytes("provider responded"));
-        escrow.claimDefault(cid);
-    }
-
     function test_withdraw_after_verdict_window() public {
         uint256 pid = _promiseSession();
         vm.prank(challenger);
         uint256 cid = escrow.challenge{value: CBOND}(SID, pid);
-        vm.prank(provider);
-        escrow.respond(cid);
+        (, , , , , uint64 filedAt) = escrow.challenges(cid);
 
         vm.prank(challenger);
         vm.expectRevert(bytes("no exit yet"));
         escrow.withdrawChallenge(cid);
 
+        vm.warp(filedAt + escrow.VERDICT_WINDOW());         // exactly at the boundary: still waiting
+        vm.prank(challenger);
+        vm.expectRevert(bytes("no exit yet"));
+        escrow.withdrawChallenge(cid);
+
         uint256 challengerBefore = challenger.balance;
-        vm.warp(block.timestamp + escrow.VERDICT_WINDOW() + 1);
+        vm.warp(filedAt + escrow.VERDICT_WINDOW() + 1);
         vm.prank(challenger);
         escrow.withdrawChallenge(cid);                     // verifier never ruled: bond back, no slash
 
@@ -369,7 +360,7 @@ contract EscrowTest is Test {
         vm.warp(block.timestamp + 400 days);
         vm.prank(challenger);
         uint256 cid = escrow.challenge{value: CBOND}(SID, pid);
-        (, , , , Escrow.Status st, , ) = escrow.challenges(cid);
+        (, , , , Escrow.Status st, ) = escrow.challenges(cid);
         assertEq(uint256(st), uint256(Escrow.Status.Open), "perpetual exposure until commit");
     }
 
@@ -494,8 +485,6 @@ contract EscrowTest is Test {
         uint256 pid = _promiseSession();
         vm.prank(challenger);
         uint256 first = escrow.challenge{value: CBOND}(SID, pid);
-        vm.prank(provider);
-        escrow.respond(first);
         vm.warp(block.timestamp + escrow.VERDICT_WINDOW() + 1);
         vm.prank(challenger);
         escrow.withdrawChallenge(first);
@@ -509,8 +498,8 @@ contract EscrowTest is Test {
         assertEq(challenger.balance, before + PAYOUT + CBOND);
     }
 
-    function test_claim_default_lapse_race() public {
-        // default path hits a drained reserve: claim reverts, the challenger exits with the bond
+    function test_violation_lapse_race_loser_withdraws() public {
+        // a second violation hits a drained reserve: the verdict reverts, the challenger exits
         uint256 pid = _register(PAYOUT);
         _openCommit(SID);
         _openCommit(SID2);
@@ -521,28 +510,15 @@ contract EscrowTest is Test {
         vm.prank(verifier);
         escrow.submitVerdict(c1, true);
 
-        vm.warp(block.timestamp + escrow.RESPONSE_WINDOW() + 1);
+        vm.prank(verifier);
         vm.expectRevert(bytes("reserve insufficient"));
-        escrow.claimDefault(c2);
+        escrow.submitVerdict(c2, true);
 
         uint256 before = challenger.balance;
         vm.prank(challenger);
         escrow.withdrawChallenge(c2);
         assertEq(challenger.balance, before + CBOND);
     }
-
-    function test_slash_through_responded_path() public {
-        uint256 pid = _promiseSession();
-        vm.prank(challenger);
-        uint256 cid = escrow.challenge{value: CBOND}(SID, pid);
-        vm.prank(provider);
-        escrow.respond(cid);
-        uint256 before = challenger.balance;
-        vm.prank(verifier);
-        escrow.submitVerdict(cid, true);
-        assertEq(challenger.balance, before + PAYOUT + CBOND, "responded path still slashes");
-    }
-
     function test_fund_from_stranger() public {
         uint256 pid = _register(PAYOUT);
         address stranger = makeAddr("stranger2");

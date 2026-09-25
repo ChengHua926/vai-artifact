@@ -8,8 +8,10 @@ the AAP-1 violation. Ask it to touch a file outside workspace/ for the AAP-2 vio
 commits the session on-chain so you can challenge it.
 
 Prereqs (separate terminals, all local): `anvil`; the store
-(`.venv/bin/uvicorn app:app --app-dir packages/store --port 8000`); and the verifier
-(`.venv/bin/python scripts/verifier_service.py`). Needs ANTHROPIC_API_KEY for the chat turns.
+(`.venv/bin/uvicorn app:app --app-dir packages/store --port 8000`); the verifier
+(`.venv/bin/python scripts/verifier_service.py`); and the provider listener that delivers claim
+evidence (`.venv/bin/python scripts/provider_service.py`). See README.md. Needs
+ANTHROPIC_API_KEY for the chat turns.
 """
 import os
 import sys

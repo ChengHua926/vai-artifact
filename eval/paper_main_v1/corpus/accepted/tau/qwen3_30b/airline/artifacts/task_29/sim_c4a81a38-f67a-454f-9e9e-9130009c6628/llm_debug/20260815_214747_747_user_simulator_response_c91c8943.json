@@ -1,0 +1,166 @@
+{
+  "call_id": "c91c8943",
+  "call_name": "user_simulator_response",
+  "timestamp": "2026-08-15T21:47:47.747622",
+  "request": {
+    "model": "openrouter/openai/gpt-4.1-mini",
+    "messages": [
+      {
+        "role": "system",
+        "content": [
+          "# User Simulation Guidelines",
+          "You are playing the role of a customer contacting a customer service representative. ",
+          "Your goal is to simulate realistic customer interactions while following specific scenario instructions.",
+          "",
+          "## Core Principles",
+          "- Generate one message at a time, maintaining natural conversation flow.",
+          "- Strictly follow the scenario instructions you have received.",
+          "- Never make up or hallucinate information not provided in the scenario instructions. Information that is not provided in the scenario instructions should be considered unknown or unavailable.",
+          "- Avoid repeating the exact instructions verbatim. Use paraphrasing and natural language to convey the same information",
+          "- Disclose information progressively. Wait for the agent to ask for specific information before providing it.",
+          "",
+          "## Task Completion",
+          "- The goal is to continue the conversation until the task is complete.",
+          "- If the instruction goal is satisified, generate the '###STOP###' token to end the conversation.",
+          "- If you are transferred to another agent, generate the '###TRANSFER###' token to indicate the transfer.",
+          "- If you find yourself in a situation in which the scenario does not provide enough information for you to continue the conversation, generate the '###OUT-OF-SCOPE###' token to end the conversation.",
+          "Remember: The goal is to create realistic, natural conversations while strictly adhering to the provided instructions and maintaining character consistency.",
+          "",
+          "",
+          "<scenario>",
+          "Instructions:",
+          "\tDomain: airline",
+          "\tReason for call:",
+          "\t\tYou want to change your upcoming roundtrip flights which are currently DTW to LGA and back.",
+          "",
+          "\t\tYou want to change them to nonstop flights from DTW to JFK and back on the same dates as the current reservation.",
+          "\tKnown info:",
+          "\t\tYou are Raj Brown.",
+          "",
+          "\t\tYour user id is raj_brown_5782.",
+          "",
+          "\t\tThe reservation ID is VA5SGQ for your DTW to LGA trip.",
+          "\tTask instructions:",
+          "\t\tYou only want early flights that arrive before 7am at the destination.",
+          "",
+          "\t\tYou also want be sure to get the cheapest Economy (not Basic Economy) options within those constraints.",
+          "",
+          "\t\tIf the agent asks, you want your return flight to leave on the 19th.",
+          "",
+          "\t\tYou want the agent to figure out for you which flights fit these requirements.",
+          "",
+          "\t\tSince you took insurance for this trip, you want change fees waived (mention your health problem at the start of the conversation).",
+          "",
+          "\t\tIf and only if the prices are provided to you and you are asked to choose, choose flights HAT169 and HAT033 (if these are available within the options the agent gives you).",
+          "",
+          "\t\tYou also want to add 1 checked bag.",
+          "</scenario>"
+        ]
+      },
+      {
+        "role": "user",
+        "content": "Hi! How can I help you today?"
+      },
+      {
+        "role": "assistant",
+        "content": "Hi, I need to change my upcoming roundtrip flights. I have a health issue, so I hope the change fees can be waived since I purchased insurance for this trip.",
+        "tool_calls": null
+      },
+      {
+        "role": "user",
+        "content": [
+          "To assist with modifying your flight, I'll need your **user ID** and **reservation ID**. Could you please provide these details? Additionally, confirm if you'd like to proceed with changing the flights or if you need further assistance with cancellation options related to your health issue. ",
+          "",
+          "<need-more-info>",
+          "Please provide your user ID and reservation ID so I can check the details of your booking.",
+          "</need-more-info>"
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": "Sure, my user ID is raj_brown_5782 and my reservation ID is VA5SGQ. I want to proceed with changing the flights, not canceling.",
+        "tool_calls": null
+      },
+      {
+        "role": "user",
+        "content": [
+          "The reservation details for **VA5SGQ** show a round-trip flight from **DTW to LGA** via **PHX** with economy class. Your insurance is active, which may help with modification fees due to your health issue. ",
+          "",
+          "To proceed, I need the **new flight details** (e.g., dates or flight numbers) you\u2019d like to change to, while keeping the **origin, destination, and trip type** unchanged. For example:",
+          "- Would you like to adjust the departure/return dates?",
+          "- Are you looking for different flight numbers?",
+          "",
+          "Let me know your preferred changes!"
+        ]
+      }
+    ],
+    "tools": null,
+    "tool_choice": null,
+    "kwargs": {
+      "temperature": 0.0,
+      "seed": 626729,
+      "num_retries": 3,
+      "extra_body": "{'provider': {'order': ['openai'], 'allow_fallbacks': False}}"
+    },
+    "requested_provider_tag": "openai",
+    "response_model": "openai/gpt-4.1-mini",
+    "endpoint_revision": "openai/gpt-4.1-mini-2025-04-14",
+    "expected_served_model": "openai/gpt-4.1-mini",
+    "timestamp": "2026-08-15T21:47:46.589848"
+  },
+  "response": {
+    "timestamp": "2026-08-15T21:47:47.747224",
+    "generation_time_seconds": 1.1571048339828849,
+    "raw_response": {
+      "id": "gen-1786844866-Wzfh0SjdMASZaca33RCy",
+      "created": 1786844866,
+      "model": "openai/gpt-4.1-mini",
+      "object": "chat.completion",
+      "system_fingerprint": null,
+      "choices": [
+        {
+          "finish_reason": "stop",
+          "index": 0,
+          "message": {
+            "content": "I want to change my flights to nonstop flights from DTW to JFK and back, on the same dates as my current reservation. I only want early flights that arrive before 7am at the destination. Also, I want the cheapest Economy class options, not Basic Economy. Could you please find the flights that fit these requirements? My return flight should leave on the 19th.",
+            "role": "assistant",
+            "tool_calls": null,
+            "function_call": null,
+            "provider_specific_fields": {
+              "refusal": null,
+              "reasoning": null
+            }
+          },
+          "provider_specific_fields": {
+            "native_finish_reason": "completed"
+          }
+        }
+      ],
+      "usage": {
+        "completion_tokens": 78,
+        "prompt_tokens": 836,
+        "total_tokens": 914,
+        "completion_tokens_details": {
+          "audio_tokens": 0,
+          "reasoning_tokens": 0,
+          "image_tokens": 0
+        },
+        "prompt_tokens_details": {
+          "audio_tokens": 0,
+          "cached_tokens": 0,
+          "video_tokens": 0,
+          "cache_write_tokens": 0
+        },
+        "cost": 0.0004592,
+        "is_byok": false,
+        "cost_details": {
+          "upstream_inference_cost": 0.0004592,
+          "upstream_inference_prompt_cost": 0.0003344,
+          "upstream_inference_completions_cost": 0.0001248
+        }
+      },
+      "provider": "OpenAI",
+      "service_tier": "default"
+    }
+  }
+}

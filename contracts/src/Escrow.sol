@@ -9,9 +9,11 @@ pragma solidity ^0.8.24;
 ///
 ///         Sessions commit in two phases: `openSession` at session start (coverage becomes a
 ///         visible on-chain fact before any covered action runs) and `commitTrace` at session end.
-///         Availability is attributed, not assumed: a challenged provider must either let the
-///         verifier rule or `respond` on-chain that the trace is available; silence past
-///         RESPONSE_WINDOW lets anyone `claimDefault` — the challenge settles as a violation.
+///         A challenged provider sends the session's records and parameters privately to the
+///         trusted verifier within three days of filing; that deadline is enforced off chain by
+///         the verifier, which settles every accepted challenge. Missing, late, or mismatching
+///         evidence settles as a violation. If no verdict arrives within VERDICT_WINDOW, the
+///         challenger may withdraw the bond: nobody is slashed and the pair stays challengeable.
 ///
 ///         Promise lifecycle: registered born-funded with a per-promise reserve; each valid slash
 ///         pays one victim and drains the reserve; reserve < payout = lapse, visible on chain, cured
@@ -52,8 +54,7 @@ contract Escrow {
         address challenger;
         uint256 bond;            // forfeited if the challenge is invalid (anti-spam)
         Status status;
-        uint64  challengedAt;    // starts the response clock
-        uint64  respondedAt;     // provider's on-chain "trace is available"; zero = silence
+        uint64  challengedAt;    // filing time: starts the evidence deadline and the verdict window
     }
 
     struct TraceCheckpoint {
@@ -62,8 +63,7 @@ contract Escrow {
     }
 
     // windows (stage 1 constants; per-promise parameters deferred)
-    uint64 public constant RESPONSE_WINDOW  = 3 days;   // provider must respond (or the verifier rule) by then
-    uint64 public constant VERDICT_WINDOW   = 10 days;  // responded but no verdict -> challenger exits with bond
+    uint64 public constant VERDICT_WINDOW   = 10 days;  // no verdict by then -> challenger exits with bond
     uint64 public constant CHALLENGE_WINDOW = 30 days;  // claims accepted this long after commitTrace / retiredAt
 
     address public owner;
@@ -89,9 +89,7 @@ contract Escrow {
     event TraceCommitted(bytes32 indexed sessionId, bytes32 traceHash);
     event TraceCheckpointed(bytes32 indexed sessionId, uint256 recordCount, bytes32 prefixHash);
     event Challenged(uint256 indexed challengeId, bytes32 indexed sessionId, uint256 indexed promiseId, address challenger, uint256 bond);
-    event Responded(uint256 indexed challengeId);
     event Verdict(uint256 indexed challengeId, bool violated, uint256 paidToChallenger);
-    event DefaultClaimed(uint256 indexed challengeId, uint256 paidToChallenger);
     event ChallengeWithdrawn(uint256 indexed challengeId);
 
     modifier onlyOwner() { require(msg.sender == owner, "not owner"); _; }
@@ -175,7 +173,8 @@ contract Escrow {
     }
 
     /// Phase 2, at session END. Committing starts the challenge window; an opened session whose
-    /// hash never lands stays challengeable indefinitely and settles by default when silent.
+    /// hash never lands stays challengeable indefinitely; without a final commitment the provider
+    /// cannot supply matching evidence, so a challenge settles as a violation.
     function commitTrace(bytes32 sessionId, bytes32 traceHash) external {
         SessionCommit storage s = sessions[sessionId];
         require(s.exists, "no session");
@@ -235,36 +234,15 @@ contract Escrow {
         require(msg.value > 0, "zero challenge bond");
         challengeId = nextChallengeId++;
         challenges[challengeId] = Challenge(sessionId, promiseId, msg.sender, msg.value, Status.Open,
-                                            uint64(block.timestamp), 0);
+                                            uint64(block.timestamp));
         pairChallenged[k] = true;
         openChallenges[promiseId] += 1;
         emit Challenged(challengeId, sessionId, promiseId, msg.sender, msg.value);
     }
 
-    // ── availability: respond / default / withdraw ────────────────────────────
-    /// The provider's on-chain "the trace is available". Turns off the default path; the verifier
-    /// then rules. Responding and still withholding is adjudicated as a violation (trusted verifier).
-    function respond(uint256 challengeId) external {
-        Challenge storage c = challenges[challengeId];
-        require(c.status == Status.Open, "not open");
-        require(msg.sender == sessions[c.sessionId].provider, "not session provider");
-        require(c.respondedAt == 0, "already responded");
-        c.respondedAt = uint64(block.timestamp);
-        emit Responded(challengeId);
-    }
-
-    /// The store rule: no trace produced (no verdict, no response) within the window -> the
-    /// challenge settles as a violation. Callable by anyone; pays the challenger.
-    function claimDefault(uint256 challengeId) external {
-        Challenge storage c = challenges[challengeId];
-        require(c.status == Status.Open, "not open");
-        require(c.respondedAt == 0, "provider responded");
-        require(block.timestamp > c.challengedAt + RESPONSE_WINDOW, "response window open");
-        _slash(c, challengeId, true);
-    }
-
+    // ── challenger exit ───────────────────────────────────────────────────────
     /// Challenger exit when no verdict can come: the reserve was drained by earlier claims (lapse
-    /// race), or the provider responded but the verifier never ruled within the verdict window.
+    /// race), or the verifier never ruled within the verdict window.
     /// Bond back, nobody slashed, the pair stays challengeable.
     function withdrawChallenge(uint256 challengeId) external {
         Challenge storage c = challenges[challengeId];
@@ -272,7 +250,7 @@ contract Escrow {
         require(msg.sender == c.challenger, "not challenger");
         Promise memory p = promises[c.promiseId];
         bool lapsed = p.reserve < p.payout;
-        bool verdictOverdue = c.respondedAt != 0 && block.timestamp > c.challengedAt + VERDICT_WINDOW;
+        bool verdictOverdue = block.timestamp > c.challengedAt + VERDICT_WINDOW;
         require(lapsed || verdictOverdue, "no exit yet");
         c.status = Status.Withdrawn;                           // effects
         pairChallenged[_pairKey(c.sessionId, c.promiseId)] = false;
@@ -287,14 +265,15 @@ contract Escrow {
         Challenge storage c = challenges[challengeId];
         require(c.status == Status.Open, "not open");          // double-verdict guard
         if (violated) {
-            _slash(c, challengeId, false);
+            _slash(c, challengeId);
         } else {
-            // invalid: forfeit the challenge bond to the provider as credit (pull over push)
+            // A satisfied verdict evaluates the complete committed trace, so it needs the final
+            // commitment and closes the pair. The challenge bond is forfeited to the provider as
+            // withdrawable credit (pull over push).
+            require(sessions[c.sessionId].traceHash != bytes32(0), "trace not final");
             c.status = Status.Invalid;
             bytes32 k = _pairKey(c.sessionId, c.promiseId);
-            // A cleared final trace cannot later earn a default payout during an outage.
-            // Without a final commitment, later actions must remain challengeable.
-            if (sessions[c.sessionId].traceHash != bytes32(0)) resolved[k] = true;
+            resolved[k] = true;
             pairChallenged[k] = false;
             openChallenges[c.promiseId] -= 1;
             bonds[sessions[c.sessionId].provider] += c.bond;
@@ -302,10 +281,10 @@ contract Escrow {
         }
     }
 
-    /// Shared settlement for a violation (verifier verdict or default claim): drain the reserve by
-    /// one payout, pay the challenger payout + bond. The promise stays registered; reserve < payout
-    /// is the (curable, visible) lapse state.
-    function _slash(Challenge storage c, uint256 challengeId, bool byDefault) internal {
+    /// Settlement for a violation verdict: drain the reserve by one payout, pay the challenger
+    /// payout + bond. The promise stays registered; reserve < payout is the (curable, visible)
+    /// lapse state.
+    function _slash(Challenge storage c, uint256 challengeId) internal {
         Promise storage p = promises[c.promiseId];
         require(p.provider == sessions[c.sessionId].provider, "provider mismatch");  // defense-in-depth (I1)
         bytes32 k = _pairKey(c.sessionId, c.promiseId);
@@ -321,11 +300,7 @@ contract Escrow {
         // interaction (transfer last)
         (bool ok, ) = c.challenger.call{value: amount}("");
         require(ok, "payout failed");
-        if (byDefault) {
-            emit DefaultClaimed(challengeId, amount);
-        } else {
-            emit Verdict(challengeId, true, amount);
-        }
+        emit Verdict(challengeId, true, amount);
     }
 
     function _pairKey(bytes32 sessionId, uint256 promiseId) internal pure returns (bytes32) {

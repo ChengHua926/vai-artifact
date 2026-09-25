@@ -11,11 +11,12 @@ from web3 import Web3
 
 import _config as C
 from aa_commons import ActionRecord, trace_hash
+from aa_sdk.evidence import EVIDENCE_WINDOW
 
 STATUS = {0: "None", 1: "Open", 2: "Valid", 3: "Invalid", 4: "Withdrawn"}
 STORE_DB = os.environ.get("STORE_DB", os.path.join(C.REPO, "packages", "store", "trace_store.db"))
-EVENTS = ("PromiseRegistered", "PromiseFunded", "PromiseRetired", "SessionOpened", "TraceCommitted",
-          "Challenged", "Responded", "Verdict", "DefaultClaimed", "ChallengeWithdrawn")
+EVENTS = ("PromiseRegistered", "PromiseFunded", "PromiseRetired", "SessionOpened", "TraceCheckpointed",
+          "TraceCommitted", "Challenged", "Verdict", "ChallengeWithdrawn")
 
 
 def section(title):
@@ -47,10 +48,14 @@ def show_chain():
             a = {k: (Web3.to_hex(v)[:14] + "…" if isinstance(v, (bytes, bytearray)) else v) for k, v in a.items()}
             print(f"    {name:18s} {a}")
     nxt = c.functions.nextChallengeId().call()
+    now = w3.eth.get_block("latest")["timestamp"]
     for cid in range(1, nxt):
-        sid, pid, who, bond, st, _challenged_at, responded_at = escrow.get_challenge(cid)
+        sid, pid, who, bond, st, challenged_at = escrow.get_challenge(cid)
+        # Evidence goes privately to the verifier; the chain shows only the filing time it counts from.
+        deadline = challenged_at + EVIDENCE_WINDOW
+        due = f"  evidence due by {deadline}{' (passed)' if now > deadline else ''}" if st == 1 else ""
         print(f"  challenge #{cid}: session={Web3.to_hex(sid)[:14]}… promise={pid} status={STATUS.get(st, st)} "
-              f"challenger={who} responded={'yes' if responded_at else 'no'}")
+              f"challenger={who}{due}")
 
 
 def show_store():

@@ -11,11 +11,14 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import app as store_app  # noqa: E402
 
+TEST_TOKEN = "provider-store-test-token"
+
 
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
     monkeypatch.setattr(store_app, "DB", str(tmp_path / "test_store.db"))
-    return TestClient(store_app.app)
+    monkeypatch.setenv("STORE_TOKEN", TEST_TOKEN)
+    return TestClient(store_app.app, headers={"Authorization": f"Bearer {TEST_TOKEN}"})
 
 
 def _rec(seq, tool="read", args=None, result="ok", sid="0xS"):
@@ -88,3 +91,38 @@ def test_inventory_detects_either_kind_of_existing_data(client):
     assert client.get("/inventory").json() == {"promise_count": 0, "record_count": 1}
     client.put("/promises/1", json={"predicate": "x", "params": {}})
     assert client.get("/inventory").json() == {"promise_count": 1, "record_count": 1}
+
+
+@pytest.mark.parametrize("method,path,payload", [
+    ("GET", "/sessions/0xS/records", None),
+    ("POST", "/sessions/0xS/records", _rec(1)),
+    ("GET", "/promises/1", None),
+    ("PUT", "/promises/1", {"predicate": "x", "params": {}}),
+    ("GET", "/inventory", None),
+])
+@pytest.mark.parametrize("authorization", [None, "Bearer wrong-token", "Basic abc"])
+def test_data_endpoints_reject_unauthorized_requests(client, method, path, payload, authorization):
+    client.post("/sessions/0xS/records", json=_rec(1))
+    client.put("/promises/1", json={"predicate": "original", "params": {"secret": 7}})
+    with TestClient(store_app.app) as outsider:
+        headers = {"Authorization": authorization} if authorization else {}
+        result = outsider.request(method, path, headers=headers, json=payload)
+    assert result.status_code == 401
+    assert "secret" not in result.text
+    assert client.get("/sessions/0xS/records").json() == [_rec(1)]
+    assert client.get("/promises/1").json() == {"predicate": "original", "params": {"secret": 7}}
+
+
+@pytest.mark.parametrize("token", [None, "", "   "])
+def test_store_without_configured_token_fails_closed(client, monkeypatch, token):
+    if token is None:
+        monkeypatch.delenv("STORE_TOKEN", raising=False)
+    else:
+        monkeypatch.setenv("STORE_TOKEN", token)
+    assert client.get("/sessions/0xS/records").status_code == 503
+    assert client.post("/sessions/0xS/records", json=_rec(1)).status_code == 503
+    assert client.put("/promises/1", json={"predicate": "x", "params": {}}).status_code == 503
+    assert client.get("/promises/1").status_code == 503
+    assert client.get("/inventory").status_code == 503
+    with TestClient(store_app.app) as anonymous:
+        assert anonymous.get("/health").json() == {"ok": True}

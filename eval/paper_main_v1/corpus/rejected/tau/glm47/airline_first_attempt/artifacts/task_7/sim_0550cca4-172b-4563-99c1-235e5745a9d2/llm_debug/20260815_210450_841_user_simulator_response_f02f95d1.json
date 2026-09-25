@@ -1,0 +1,175 @@
+{
+  "call_id": "f02f95d1",
+  "call_name": "user_simulator_response",
+  "timestamp": "2026-08-15T21:04:50.841044",
+  "request": {
+    "model": "openrouter/openai/gpt-4.1-mini",
+    "messages": [
+      {
+        "role": "system",
+        "content": [
+          "# User Simulation Guidelines",
+          "You are playing the role of a customer contacting a customer service representative. ",
+          "Your goal is to simulate realistic customer interactions while following specific scenario instructions.",
+          "",
+          "## Core Principles",
+          "- Generate one message at a time, maintaining natural conversation flow.",
+          "- Strictly follow the scenario instructions you have received.",
+          "- Never make up or hallucinate information not provided in the scenario instructions. Information that is not provided in the scenario instructions should be considered unknown or unavailable.",
+          "- Avoid repeating the exact instructions verbatim. Use paraphrasing and natural language to convey the same information",
+          "- Disclose information progressively. Wait for the agent to ask for specific information before providing it.",
+          "",
+          "## Task Completion",
+          "- The goal is to continue the conversation until the task is complete.",
+          "- If the instruction goal is satisified, generate the '###STOP###' token to end the conversation.",
+          "- If you are transferred to another agent, generate the '###TRANSFER###' token to indicate the transfer.",
+          "- If you find yourself in a situation in which the scenario does not provide enough information for you to continue the conversation, generate the '###OUT-OF-SCOPE###' token to end the conversation.",
+          "Remember: The goal is to create realistic, natural conversations while strictly adhering to the provided instructions and maintaining character consistency.",
+          "",
+          "",
+          "<scenario>",
+          "Instructions:",
+          "\tDomain: airline",
+          "\tReason for call:",
+          "\t\tYou want to cancel your upcoming flights within reservation IDs XEHM4B and 59XX6W.",
+          "\tKnown info:",
+          "\t\tYour user id is 'daiki_muller_1116'.",
+          "\tTask instructions:",
+          "\t\tIf the agent says either of the two reservations is basic economy, ask to upgrade to business first and then cancel the reservation (Using the CC ending in 2135).",
+          "",
+          "\t\tYou are very persistent and terse but clear.",
+          "",
+          "\t\tYou are sick.",
+          "",
+          "\t\tIn the middle of the conversation after the third agent message, you also want to check if you have any other upcoming flights and ask for what the total cost of those flights is.",
+          "</scenario>"
+        ]
+      },
+      {
+        "role": "user",
+        "content": "Hi! How can I help you today?"
+      },
+      {
+        "role": "assistant",
+        "content": "I need to cancel my upcoming flights under reservation IDs XEHM4B and 59XX6W.",
+        "tool_calls": null
+      },
+      {
+        "role": "user",
+        "content": [
+          "I can help you cancel those reservations. To proceed, I'll need a few details:",
+          "",
+          "1. **Your user ID** - This is required to access your reservations",
+          "2. **The reason for cancellation** - Please choose one of the following:",
+          "   - Change of plan",
+          "   - Airline cancelled flight",
+          "   - Other reasons",
+          "",
+          "Once I have this information, I'll look up the details of both reservations and confirm the cancellation with you before proceeding."
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": "My user ID is daiki_muller_1116. The reason for cancellation is other reasons. Please proceed.",
+        "tool_calls": null
+      },
+      {
+        "role": "user",
+        "content": [
+          "I've reviewed both reservations. Unfortunately, **neither reservation is eligible for cancellation** based on our policy. Here's the breakdown:",
+          "",
+          "---",
+          "",
+          "**Reservation XEHM4B**",
+          "- **Cabin:** Basic Economy",
+          "- **Travel Insurance:** No",
+          "- **Flights:** May 20 & May 30, 2024",
+          "- **Status:** \u274c Not eligible for cancellation",
+          "  - Not within 24 hours of booking (booked May 1)",
+          "  - No travel insurance",
+          "  - Reason is \"other reasons\" (insurance only covers health or weather)",
+          "",
+          "**Reservation 59XX6W**",
+          "- **Cabin:** Economy",
+          "- **Travel Insurance:** Yes",
+          "- **Flights:** May 19 & May 29, 2024",
+          "- **Status:** \u274c Not eligible for cancellation",
+          "  - Not within 24 hours of booking (booked May 12)",
+          "  - Travel insurance does not cover \"other reasons\" (only health or weather)",
+          "",
+          "---",
+          "",
+          "If you believe there are special circumstances or need further assistance, I can transfer you to a human agent who may be able to review your case. Would you like me to do that?"
+        ]
+      }
+    ],
+    "tools": null,
+    "tool_choice": null,
+    "kwargs": {
+      "temperature": 0.0,
+      "seed": 626729,
+      "num_retries": 3,
+      "extra_body": "{'provider': {'order': ['openai'], 'allow_fallbacks': False}}"
+    },
+    "requested_provider_tag": "openai",
+    "response_model": "openai/gpt-4.1-mini",
+    "endpoint_revision": "openai/gpt-4.1-mini-2025-04-14",
+    "expected_served_model": "openai/gpt-4.1-mini",
+    "timestamp": "2026-08-15T21:04:49.989049"
+  },
+  "response": {
+    "timestamp": "2026-08-15T21:04:50.840663",
+    "generation_time_seconds": 0.8515246669994667,
+    "raw_response": {
+      "id": "gen-1786842290-3etRyQ24eJbbX2fIlX8u",
+      "created": 1786842290,
+      "model": "openai/gpt-4.1-mini",
+      "object": "chat.completion",
+      "system_fingerprint": null,
+      "choices": [
+        {
+          "finish_reason": "stop",
+          "index": 0,
+          "message": {
+            "content": "Since XEHM4B is basic economy, upgrade it to business class first using the credit card ending in 2135, then cancel it. After that, cancel 59XX6W as well.",
+            "role": "assistant",
+            "tool_calls": null,
+            "function_call": null,
+            "provider_specific_fields": {
+              "refusal": null,
+              "reasoning": null
+            }
+          },
+          "provider_specific_fields": {
+            "native_finish_reason": "completed"
+          }
+        }
+      ],
+      "usage": {
+        "completion_tokens": 42,
+        "prompt_tokens": 814,
+        "total_tokens": 856,
+        "completion_tokens_details": {
+          "audio_tokens": 0,
+          "reasoning_tokens": 0,
+          "image_tokens": 0
+        },
+        "prompt_tokens_details": {
+          "audio_tokens": 0,
+          "cached_tokens": 0,
+          "video_tokens": 0,
+          "cache_write_tokens": 0
+        },
+        "cost": 0.0003928,
+        "is_byok": false,
+        "cost_details": {
+          "upstream_inference_cost": 0.0003928,
+          "upstream_inference_prompt_cost": 0.0003256,
+          "upstream_inference_completions_cost": 6.72e-05
+        }
+      },
+      "provider": "OpenAI",
+      "service_tier": "default"
+    }
+  }
+}

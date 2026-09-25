@@ -1,4 +1,5 @@
 """Lagging RPC heads must not erase state already confirmed to this client."""
+from pathlib import Path
 from types import SimpleNamespace
 import json
 
@@ -9,6 +10,48 @@ from aa_sdk.chain import EscrowClient
 
 ADDRESS = "0x" + "11" * 20
 SID = "0x" + "22" * 32
+REPO = Path(__file__).resolve().parents[3]
+ARTIFACT = REPO / "contracts/out/Escrow.sol/Escrow.json"
+
+
+def built_abi():
+    """The ABI the scripts load; it must be built from the current Solidity source."""
+    from web3 import Web3
+    if not ARTIFACT.exists():
+        pytest.skip("build the contract first: forge build --offline --root contracts")
+    compiled = json.loads(ARTIFACT.read_text())
+    metadata = compiled["metadata"]
+    metadata = json.loads(metadata) if isinstance(metadata, str) else metadata
+    source = (REPO / "contracts/src/Escrow.sol").read_bytes()
+    assert metadata["sources"]["src/Escrow.sol"]["keccak256"] == Web3.to_hex(Web3.keccak(source)), \
+        "contract build is stale; rebuild before testing the client ABI"
+    return compiled["abi"]
+
+
+def test_client_and_abi_have_no_response_or_default_path():
+    names = {item.get("name") for item in built_abi()}
+    assert not names & {"respond", "claimDefault", "Responded", "DefaultClaimed", "RESPONSE_WINDOW"}
+    assert {"challenge", "submitVerdict", "withdrawChallenge", "Challenged", "Verdict"} <= names
+    assert not hasattr(EscrowClient, "respond") and not hasattr(EscrowClient, "claim_default")
+
+
+def test_get_challenge_decodes_the_six_field_claim():
+    from eth_abi import encode
+    from web3 import Web3
+    from web3.providers.base import BaseProvider
+    abi = built_abi()
+    outputs = next(item for item in abi if item.get("name") == "challenges")["outputs"]
+    assert [o["name"] for o in outputs] == ["sessionId", "promiseId", "challenger", "bond", "status", "challengedAt"]
+    claim = (bytes.fromhex(SID[2:]), 3, Web3.to_checksum_address("0x" + "33" * 20), 7, 1, 1_700_000_000)
+    encoded = encode([o["type"] for o in outputs], list(claim))
+
+    class OneClaim(BaseProvider):
+        def make_request(self, method, params):
+            results = {"eth_chainId": hex(31337), "eth_blockNumber": hex(9), "eth_call": Web3.to_hex(encoded)}
+            return {"jsonrpc": "2.0", "id": 1, "result": results[method]}
+
+    client = EscrowClient(Web3(OneClaim()), ADDRESS, abi)
+    assert tuple(client.get_challenge(1)) == claim
 
 
 def lagging_client():

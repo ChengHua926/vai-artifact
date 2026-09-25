@@ -74,31 +74,51 @@ class HttpStore:
     at a time as actions happen (append_record) and are read back at session end (get_records);
     promises ship their readable {predicate, params} at registration (put_promise).
 
-    Local now (http://127.0.0.1:8000); to deploy, run that service anywhere and point STORE_URL at it
-    — no code change. `store` is optional on Accountability; pass None for in-memory self-check demos."""
+    Credentials belong only to the provider. Set STORE_TOKEN or pass token explicitly; never
+    give this client or its token to the verifier. Use HTTPS outside a private local deployment.
+    `store` is optional on Accountability; pass None for in-memory self-check demos."""
 
-    def __init__(self, base_url: str):
+    def __init__(self, base_url: str, token: str | None = None):
+        from .evidence import require_secure_url
+        require_secure_url(base_url, "provider store access")
         self.base_url = base_url.rstrip("/")
+        token = os.environ.get("STORE_TOKEN") if token is None else token
+        if not token or not token.strip():
+            raise ValueError("STORE_TOKEN is required for the provider's private store")
+        self._headers = {"Authorization": f"Bearer {token}"}
+
+    @staticmethod
+    def _acknowledged(response):
+        import requests
+        response.raise_for_status()
+        if not 200 <= response.status_code < 300:
+            raise requests.HTTPError("store redirects are not accepted", response=response)
+        return response
 
     def append_record(self, session_id: str, record: dict) -> None:
         import requests
-        requests.post(f"{self.base_url}/sessions/{session_id}/records", json=record, timeout=10).raise_for_status()
+        self._acknowledged(requests.post(f"{self.base_url}/sessions/{session_id}/records", json=record,
+                          headers=self._headers, timeout=10, allow_redirects=False))
 
     def get_records(self, session_id: str) -> list:
         import requests
-        r = requests.get(f"{self.base_url}/sessions/{session_id}/records", timeout=10)
-        r.raise_for_status()
-        return r.json()
+        return self._acknowledged(requests.get(f"{self.base_url}/sessions/{session_id}/records",
+            headers=self._headers, timeout=10, allow_redirects=False)).json()
 
     def put_promise(self, promise_id: int, record: dict) -> None:
         import requests
-        requests.put(f"{self.base_url}/promises/{promise_id}", json=record, timeout=10).raise_for_status()
+        self._acknowledged(requests.put(f"{self.base_url}/promises/{promise_id}", json=record,
+            headers=self._headers, timeout=10, allow_redirects=False))
 
     def get_promise(self, promise_id: int) -> dict:
         import requests
-        r = requests.get(f"{self.base_url}/promises/{promise_id}", timeout=10)
-        r.raise_for_status()
-        return r.json()
+        return self._acknowledged(requests.get(f"{self.base_url}/promises/{promise_id}",
+            headers=self._headers, timeout=10, allow_redirects=False)).json()
+
+    def inventory(self) -> dict:
+        import requests
+        return self._acknowledged(requests.get(f"{self.base_url}/inventory",
+            headers=self._headers, timeout=10, allow_redirects=False)).json()
 
 
 def _differing_seqs(buffer: list, shipped: list) -> list:

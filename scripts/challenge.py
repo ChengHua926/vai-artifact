@@ -3,7 +3,9 @@
     python scripts/challenge.py [consent|scope]      (default: consent)
 
 The challenger is the party recorded on the session, so the privacy check passes. Posts a
-challenge bond; the always-on verifier picks up the Challenged event and adjudicates.
+challenge bond. The provider listener delivers the session's evidence to the verifier within
+three days of filing; the always-on verifier settles the claim (a violation if no valid evidence
+arrived by then).
 """
 import sys
 

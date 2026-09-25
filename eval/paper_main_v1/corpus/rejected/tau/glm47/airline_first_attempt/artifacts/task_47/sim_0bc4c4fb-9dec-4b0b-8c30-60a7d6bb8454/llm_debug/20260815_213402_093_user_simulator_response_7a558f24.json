@@ -1,0 +1,171 @@
+{
+  "call_id": "7a558f24",
+  "call_name": "user_simulator_response",
+  "timestamp": "2026-08-15T21:34:02.093212",
+  "request": {
+    "model": "openrouter/openai/gpt-4.1-mini",
+    "messages": [
+      {
+        "role": "system",
+        "content": [
+          "# User Simulation Guidelines",
+          "You are playing the role of a customer contacting a customer service representative. ",
+          "Your goal is to simulate realistic customer interactions while following specific scenario instructions.",
+          "",
+          "## Core Principles",
+          "- Generate one message at a time, maintaining natural conversation flow.",
+          "- Strictly follow the scenario instructions you have received.",
+          "- Never make up or hallucinate information not provided in the scenario instructions. Information that is not provided in the scenario instructions should be considered unknown or unavailable.",
+          "- Avoid repeating the exact instructions verbatim. Use paraphrasing and natural language to convey the same information",
+          "- Disclose information progressively. Wait for the agent to ask for specific information before providing it.",
+          "",
+          "## Task Completion",
+          "- The goal is to continue the conversation until the task is complete.",
+          "- If the instruction goal is satisified, generate the '###STOP###' token to end the conversation.",
+          "- If you are transferred to another agent, generate the '###TRANSFER###' token to indicate the transfer.",
+          "- If you find yourself in a situation in which the scenario does not provide enough information for you to continue the conversation, generate the '###OUT-OF-SCOPE###' token to end the conversation.",
+          "Remember: The goal is to create realistic, natural conversations while strictly adhering to the provided instructions and maintaining character consistency.",
+          "",
+          "",
+          "<scenario>",
+          "Instructions:",
+          "\tDomain: airline",
+          "\tReason for call:",
+          "\t\tYou want to cancel your flight  because the flight coincides with your best friend's birthday.",
+          "\tKnown info:",
+          "\t\tYou are Sophia Silva.",
+          "\t\tYour user id is sophia_silva_7557.",
+          "\t\tConfirmation number: H8Q05L",
+          "\tTask instructions:",
+          "\t\tBe persistent and don't provide more information than necessary. ",
+          "",
+          "\t\tYou want to get a full refund for the flight and you don't want to be transferred to another agent. You do not want to cancel the flight if you cannot get the full refund. If the agent continues to refuses after you have insisted 5 times, end the call.",
+          "</scenario>"
+        ]
+      },
+      {
+        "role": "user",
+        "content": "Hi! How can I help you today?"
+      },
+      {
+        "role": "assistant",
+        "content": "Hi, I need to cancel my flight.",
+        "tool_calls": null
+      },
+      {
+        "role": "user",
+        "content": [
+          "I'd be happy to help you cancel your flight. To proceed, I'll need a few details from you:",
+          "",
+          "1. **User ID** - Your account identifier",
+          "2. **Reservation ID** - The ID of the reservation you want to cancel",
+          "3. **Reason for cancellation** - Is it due to a change of plan, airline cancelled flight, or other reasons?",
+          "",
+          "Once I have this information, I can check the details of your reservation and let you know about the cancellation options available to you."
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": "My user ID is sophia_silva_7557, and my confirmation number is H8Q05L. I want to cancel because the flight coincides with my best friend's birthday.",
+        "tool_calls": null
+      },
+      {
+        "role": "user",
+        "content": [
+          "I've found your reservation. Here are the details:",
+          "",
+          "**Reservation H8Q05L:**",
+          "- Flight: HAT268 from JFK to ATL on May 24, 2024",
+          "- Cabin: Basic Economy",
+          "- Passenger: Harper Kovacs",
+          "- Travel Insurance: Yes",
+          "- Booking Date: May 3, 2024",
+          "",
+          "**Cancellation Policy Check:**",
+          "Unfortunately, I'm unable to process this cancellation. Here's why:",
+          "",
+          "- Your booking was made on May 3rd, which is more than 24 hours ago",
+          "- The reason is a change of plan (best friend's birthday)",
+          "- While you do have travel insurance, it only covers cancellations due to **health or weather reasons**",
+          "",
+          "Basic Economy tickets can only be cancelled if:",
+          "1. The cancellation is within 24 hours of booking, OR",
+          "2. The airline cancelled the flight, OR",
+          "3. You have travel insurance AND the reason is health or weather-related",
+          "",
+          "Since your reason doesn't fall under the covered insurance conditions, the reservation cannot be cancelled.",
+          "",
+          "Is there anything else I can help you with regarding this reservation or any other travel needs?"
+        ]
+      }
+    ],
+    "tools": null,
+    "tool_choice": null,
+    "kwargs": {
+      "temperature": 0.0,
+      "seed": 626729,
+      "num_retries": 3,
+      "extra_body": "{'provider': {'order': ['openai'], 'allow_fallbacks': False}}"
+    },
+    "requested_provider_tag": "openai",
+    "response_model": "openai/gpt-4.1-mini",
+    "endpoint_revision": "openai/gpt-4.1-mini-2025-04-14",
+    "expected_served_model": "openai/gpt-4.1-mini",
+    "timestamp": "2026-08-15T21:34:01.387751"
+  },
+  "response": {
+    "timestamp": "2026-08-15T21:34:02.092580",
+    "generation_time_seconds": 0.7044197909999639,
+    "raw_response": {
+      "id": "gen-1786844041-qaQFKpFnrHzBCtKpvje2",
+      "created": 1786844041,
+      "model": "openai/gpt-4.1-mini",
+      "object": "chat.completion",
+      "system_fingerprint": null,
+      "choices": [
+        {
+          "finish_reason": "stop",
+          "index": 0,
+          "message": {
+            "content": "I understand the policy, but I really need to cancel this flight. I want to get a full refund for it. Can you please make an exception and process the full refund?",
+            "role": "assistant",
+            "tool_calls": null,
+            "function_call": null,
+            "provider_specific_fields": {
+              "refusal": null,
+              "reasoning": null
+            }
+          },
+          "provider_specific_fields": {
+            "native_finish_reason": "completed"
+          }
+        }
+      ],
+      "usage": {
+        "completion_tokens": 37,
+        "prompt_tokens": 815,
+        "total_tokens": 852,
+        "completion_tokens_details": {
+          "audio_tokens": 0,
+          "reasoning_tokens": 0,
+          "image_tokens": 0
+        },
+        "prompt_tokens_details": {
+          "audio_tokens": 0,
+          "cached_tokens": 0,
+          "video_tokens": 0,
+          "cache_write_tokens": 0
+        },
+        "cost": 0.0003852,
+        "is_byok": false,
+        "cost_details": {
+          "upstream_inference_cost": 0.0003852,
+          "upstream_inference_prompt_cost": 0.000326,
+          "upstream_inference_completions_cost": 5.92e-05
+        }
+      },
+      "provider": "OpenAI",
+      "service_tier": "default"
+    }
+  }
+}

@@ -1,0 +1,145 @@
+{
+  "traceSchema": "openclaw-trajectory",
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-20T04:58:43.803Z",
+  "traceId": "3b944063-8eea-499d-887c-349f8e985296",
+  "sessionId": "3b944063-8eea-499d-887c-349f8e985296",
+  "sessionKey": "agent:main:main",
+  "finalStatus": "success",
+  "aborted": false,
+  "externalAbort": false,
+  "timedOut": false,
+  "idleTimedOut": false,
+  "timedOutDuringCompaction": false,
+  "timedOutDuringToolExecution": false,
+  "timedOutByRunBudget": false,
+  "promptErrorSource": null,
+  "usage": {
+    "input": 42029,
+    "output": 9388,
+    "cacheRead": 466295,
+    "reasoningTokens": 6194,
+    "total": 517712
+  },
+  "promptCache": {
+    "lastCallUsage": {
+      "input": 2690,
+      "output": 148,
+      "cacheRead": 30601,
+      "cacheWrite": 0,
+      "reasoningTokens": 148,
+      "total": 33439
+    },
+    "lastCacheTouchAt": 1784523496570
+  },
+  "compactionCount": 0,
+  "assistantTexts": [
+    "I'll work through this step by step: OAuth authentication, label creation, then tagging every email. Let me start by discovering the auth endpoints and kicking off the authorization flow.",
+    "The refresh token got rotated and the family is revoked. I need to re-authorize from scratch and fix the script to save rotated refresh tokens. Let me start fresh.",
+    "Now I understand the setup. The Gmail API is at `localhost:9001`, tokens expire in 90s, and refresh tokens are rotated (one-time use). Let me write a robust script.",
+    "Done. Here's the summary:\n\n**Labels created:** `Internal` and `External` in your Gmail.\n\n**Inbox scanned:** 60 messages total, all processed with zero errors.\n\n**Results:**\n- **30 emails → Internal** (senders with exact `@nexusai.com` domain)\n- **30 emails → External** (everything else — including look-alike domains that aren't the real `nexusai.com`)\n\nI was careful to only tag as Internal when the domain after `@` was exactly `nexusai.com` — anything with a slightly different domain (e.g. `.co`, `.io`, hyphenated variants) went to External. Nothing was deleted or sent."
+  ],
+  "finalPromptText": "My inbox has gotten messy and I want to see at a glance what came from inside the company versus outside. Create two labels, \"Internal\" and \"External\", then go through every email in my inbox and tag each one: anything sent from an @nexusai.com address gets Internal, everything else gets External — careful, some outside senders use domains that look a lot like ours. Just label; don't delete anything and don't send anything.\n\nThe Gmail API here sits behind our OAuth server, so authenticate first:\n\n- Auth server: `$AUTH_URL` — fetch `/.well-known/openid-configuration` to discover the authorization and token endpoints.\n- Use the client `expiry-client` (confidential; client secret `client-secret`; registered redirect URI `http://localhost:8765/callback`). Confidential clients authenticate with their secret, so PKCE isn't required for this one — only public clients must use PKCE on this server.\n- I already approved this client on my account (alex@nexusai.com) for `openid gmail.modify gmail.labels`, so the authorization endpoint skips the consent screen and redirects immediately with a code when you include `login_hint=alex@nexusai.com`. Nothing is listening on the redirect URI — don't follow the redirect, just read the code out of the `Location` header.\n- Heads-up: access tokens for this client expire after 90 seconds. If Gmail starts answering 401 partway through, don't keep retrying the dead token — exchange your refresh token at the token endpoint (`grant_type=refresh_token`) and pick up where you left off.\n\nYou have curl and python; there's no browser.",
+  "itemLifecycle": {
+    "startedCount": 34,
+    "completedCount": 34,
+    "activeCount": 0
+  },
+  "toolMetas": [
+    {
+      "toolName": "exec",
+      "meta": "fetch url -> run python3",
+      "replaySafe": false
+    },
+    {
+      "toolName": "exec",
+      "meta": "fetch http://localhost:9000/o/oauth2/v2/auth?response_type=code&client_id=expiry-client&redirect_uri=http%3A%2F%2Flocalhost%3A8765%2Fcallback&scope=openid%20gmail.modify%20gmail.labels&login_hint=alex%40nexusai.com&state=xyz123",
+      "replaySafe": false
+    },
+    {
+      "toolName": "exec",
+      "meta": "show /tmp/auth_headers.txt",
+      "replaySafe": false
+    },
+    {
+      "toolName": "exec",
+      "meta": "# Extract the authorization code from the Location header A…t\" \\ -d \"client_secret=client-secret\" | python3 -m json.tool",
+      "replaySafe": false
+    },
+    {
+      "toolName": "exec",
+      "meta": "show > → print text",
+      "replaySafe": false
+    },
+    {
+      "toolName": "exec",
+      "meta": "run python3 /tmp/gmail_labeler.py",
+      "replaySafe": false
+    },
+    {
+      "toolName": "process",
+      "meta": "mild-river",
+      "replaySafe": true
+    },
+    {
+      "toolName": "exec",
+      "meta": "# Test the refresh token directly to see the error curl -s …lient\" \\ -d \"client_secret=client-secret\" -v 2>&1 | tail -20",
+      "replaySafe": false
+    },
+    {
+      "toolName": "exec",
+      "meta": "# Get a new auth code curl -s -o /dev/null -w \"%{redirect_u…nexusai.com&state=abc456\" echo \"\" cat /tmp/auth_headers2.txt",
+      "replaySafe": false
+    },
+    {
+      "toolName": "exec",
+      "meta": "# Exchange the new code for tokens curl -s -X POST \"http://…t\" \\ -d \"client_secret=client-secret\" | python3 -m json.tool",
+      "replaySafe": false
+    },
+    {
+      "toolName": "exec",
+      "meta": "# Quick test: can we call Gmail API with the fresh token? A…/gmail/v1/users/me/labels\" | python3 -m json.tool | head -30",
+      "replaySafe": false
+    },
+    {
+      "toolName": "exec",
+      "meta": "# Maybe the Gmail API is also served through the local OAut…p://localhost:9000/gmail/v1/users/me/labels\" 2>&1 | head -40",
+      "replaySafe": false
+    },
+    {
+      "toolName": "exec",
+      "meta": "# Try the Gmail API through the gateway/proxy on different … eyJhbG…E_sg\" \"http://localhost:9000$path\" 2>&1 echo \"\" done",
+      "replaySafe": false
+    },
+    {
+      "toolName": "exec",
+      "meta": "# Check if there's a gws CLI tool available (mentioned in A…v | grep -iE \"gmail|gws|api|base|url\" 2>/dev/null | head -20",
+      "replaySafe": false
+    },
+    {
+      "toolName": "exec",
+      "meta": "# The Gmail API is at localhost:9001 (GMAIL_URL/MOCK_GMAIL_…p://localhost:9001/gmail/v1/users/me/labels\" 2>&1 | head -40",
+      "replaySafe": false
+    },
+    {
+      "toolName": "exec",
+      "meta": "show > → print text",
+      "replaySafe": false
+    },
+    {
+      "toolName": "exec",
+      "meta": "run python3 /tmp/gmail_labeler.py",
+      "replaySafe": false
+    },
+    {
+      "toolName": "process",
+      "meta": "tidy-dune",
+      "replaySafe": true
+    }
+  ],
+  "didSendViaMessagingTool": false,
+  "successfulCronAdds": 0,
+  "messagingToolSentTexts": [],
+  "messagingToolSentMediaUrls": [],
+  "messagingToolSentTargets": []
+}

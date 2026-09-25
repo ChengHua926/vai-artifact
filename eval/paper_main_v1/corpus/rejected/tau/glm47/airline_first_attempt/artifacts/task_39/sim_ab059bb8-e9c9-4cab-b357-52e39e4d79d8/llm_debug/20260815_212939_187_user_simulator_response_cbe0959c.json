@@ -1,0 +1,221 @@
+{
+  "call_id": "cbe0959c",
+  "call_name": "user_simulator_response",
+  "timestamp": "2026-08-15T21:29:39.187804",
+  "request": {
+    "model": "openrouter/openai/gpt-4.1-mini",
+    "messages": [
+      {
+        "role": "system",
+        "content": [
+          "# User Simulation Guidelines",
+          "You are playing the role of a customer contacting a customer service representative. ",
+          "Your goal is to simulate realistic customer interactions while following specific scenario instructions.",
+          "",
+          "## Core Principles",
+          "- Generate one message at a time, maintaining natural conversation flow.",
+          "- Strictly follow the scenario instructions you have received.",
+          "- Never make up or hallucinate information not provided in the scenario instructions. Information that is not provided in the scenario instructions should be considered unknown or unavailable.",
+          "- Avoid repeating the exact instructions verbatim. Use paraphrasing and natural language to convey the same information",
+          "- Disclose information progressively. Wait for the agent to ask for specific information before providing it.",
+          "",
+          "## Task Completion",
+          "- The goal is to continue the conversation until the task is complete.",
+          "- If the instruction goal is satisified, generate the '###STOP###' token to end the conversation.",
+          "- If you are transferred to another agent, generate the '###TRANSFER###' token to indicate the transfer.",
+          "- If you find yourself in a situation in which the scenario does not provide enough information for you to continue the conversation, generate the '###OUT-OF-SCOPE###' token to end the conversation.",
+          "Remember: The goal is to create realistic, natural conversations while strictly adhering to the provided instructions and maintaining character consistency.",
+          "",
+          "",
+          "<scenario>",
+          "Instructions:",
+          "\tDomain: airline",
+          "\tReason for call:",
+          "\t\tYou want to cancel all of your upcoming flights.",
+          "\tKnown info:",
+          "\t\tYou are Amelia Davis.",
+          "",
+          "\t\tYour user id is amelia_davis_8890.",
+          "",
+          "",
+          "\t\tYou are French by birth and your English is not perfect.  ",
+          "\t\tYou occasionally insert French words when you communicate.",
+          "\tUnknown info:",
+          "\t\tYou don't know any of your reservation ids.",
+          "\tTask instructions:",
+          "\t\tEven if the agent says you will not receive a refund for some of them, you want to proceed anyway so that you can give up your seat for someone else who needs it.",
+          "</scenario>"
+        ]
+      },
+      {
+        "role": "user",
+        "content": "Hi! How can I help you today?"
+      },
+      {
+        "role": "assistant",
+        "content": "Hello! I want to cancel all my upcoming flights, please. Could you help me with that?",
+        "tool_calls": null
+      },
+      {
+        "role": "user",
+        "content": [
+          "I'd be happy to help you cancel your upcoming flights. To get started, I'll need a few pieces of information:",
+          "",
+          "1. **Your user ID** - This helps me locate your reservations in our system",
+          "2. **Your reservation IDs** - If you have them handy, please provide them. If not, I can help you look them up",
+          "3. **The reason for cancellation** - This helps determine if your reservation is eligible for cancellation (e.g., change of plan, airline cancelled flight, or other reasons)",
+          "",
+          "Could you please provide your user ID first?"
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": "Yes, my user ID is amelia_davis_8890. I do not have my reservation IDs with me, sorry. I want to cancel because I cannot travel anymore. Even if I do not get refund, I want to give my seat to someone else who needs it.",
+        "tool_calls": null
+      },
+      {
+        "role": "user",
+        "content": [
+          "I found all your reservations. Here's a summary of your upcoming flights (after May 15, 2024):",
+          "",
+          "| Reservation ID | Route | Date | Cabin | Passengers | Insurance | Eligible? |",
+          "|----------------|-------|------|-------|------------|-----------|-----------|",
+          "| **8C8K4E** | BOS \u2192 DEN | May 24, 2024 | Business | 2 | Yes | \u2705 Yes |",
+          "| **LU15PA** | SFO \u2192 SFO | May 23, 2024 | Business | 2 | No | \u2705 Yes |",
+          "| **MSJ4OA** | DFW \u2192 SFO | May 22, 2024 | Economy | 3 | Yes | \u2705 Yes |",
+          "| UDMOP1 | SFO \u2192 SFO | May 28, 2024 | Basic Economy | 1 | No | \u274c No |",
+          "| XAZ3C0 | ATL \u2192 CLT | May 27, 2024 | Basic Economy | 2 | No | \u274c No |",
+          "| I6M8JQ | LAS \u2192 EWR | May 9, 2024 | Economy | 2 | Yes | \u274c Past flight |",
+          "| 4XGCCM | IAH \u2192 DTW | May 3-4, 2024 | Business | 1 | Yes | \u274c Past flight |",
+          "",
+          "**Eligible for cancellation:**",
+          "- **8C8K4E** (May 24) - Business class with travel insurance",
+          "- **LU15PA** (May 23) - Business class",
+          "- **MSJ4OA** (May 22) - Economy class with travel insurance",
+          "",
+          "**Not eligible for cancellation:**",
+          "- **UDMOP1** and **XAZ3C0** - Basic economy without travel insurance (cannot be cancelled)",
+          "- **I6M8JQ** and **4XGCCM** - Past flights (already flown)",
+          "",
+          "Which of the three eligible reservations would you like to cancel? You can cancel all three if you'd like."
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": "Merci for the information. I want to cancel all three eligible reservations, please. Even if I do not get refund, I want to give my seat to someone else who needs it. Can you proceed with cancellation for 8C8K4E, LU15PA, and MSJ4OA?",
+        "tool_calls": null
+      },
+      {
+        "role": "user",
+        "content": [
+          "I'll help you cancel all three eligible reservations. Let me confirm the details before proceeding:",
+          "",
+          "**Cancellation Summary:**",
+          "",
+          "| Reservation ID | Route | Date | Cabin | Passengers | Insurance | Refund Status |",
+          "|----------------|-------|------|-------|------------|-----------|---------------|",
+          "| **8C8K4E** | BOS \u2192 DEN | May 24, 2024 | Business | 2 | Yes | Full refund to original payment method |",
+          "| **LU15PA** | SFO \u2192 SFO | May 23, 2024 | Business | 2 | No | Full refund to original payment method |",
+          "| **MSJ4OA** | DFW \u2192 SFO | May 22, 2024 | Economy | 3 | Yes | Full refund to original payment method |",
+          "",
+          "**Refund Information:**",
+          "- Refunds will be processed back to your original payment methods (gift cards and credit cards) within 5 to 7 business days.",
+          "- Since you mentioned you don't mind about the refund, I'll proceed with the cancellations.",
+          "",
+          "**Do you confirm that you want to cancel all three reservations (8C8K4E, LU15PA, and MSJ4OA)? Please respond with \"yes\" to proceed.**"
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": "Yes, I confirm. Please cancel all three reservations. Thank you very much for your help!",
+        "tool_calls": null
+      },
+      {
+        "role": "user",
+        "content": [
+          "All three reservations have been successfully cancelled! Here's your confirmation:",
+          "",
+          "| Reservation ID | Status | Refund Amount |",
+          "|----------------|--------|---------------|",
+          "| **8C8K4E** | \u2705 Cancelled | $5,680 |",
+          "| **LU15PA** | \u2705 Cancelled | $2,366 |",
+          "| **MSJ4OA** | \u2705 Cancelled | $984 |",
+          "",
+          "**Total Refund:** $9,030",
+          "",
+          "The refunds will be processed back to your original payment methods (gift cards and credit cards) within 5 to 7 business days.",
+          "",
+          "Your seats are now available for others to use. Is there anything else I can help you with today?"
+        ]
+      }
+    ],
+    "tools": null,
+    "tool_choice": null,
+    "kwargs": {
+      "temperature": 0.0,
+      "seed": 626729,
+      "num_retries": 3,
+      "extra_body": "{'provider': {'order': ['openai'], 'allow_fallbacks': False}}"
+    },
+    "requested_provider_tag": "openai",
+    "response_model": "openai/gpt-4.1-mini",
+    "endpoint_revision": "openai/gpt-4.1-mini-2025-04-14",
+    "expected_served_model": "openai/gpt-4.1-mini",
+    "timestamp": "2026-08-15T21:29:38.403809"
+  },
+  "response": {
+    "timestamp": "2026-08-15T21:29:39.187160",
+    "generation_time_seconds": 0.7829791659605689,
+    "raw_response": {
+      "id": "gen-1786843778-9DCltWElPwHSDGhRUtiX",
+      "created": 1786843778,
+      "model": "openai/gpt-4.1-mini",
+      "object": "chat.completion",
+      "system_fingerprint": null,
+      "choices": [
+        {
+          "finish_reason": "stop",
+          "index": 0,
+          "message": {
+            "content": "No, that is all for today. Merci beaucoup for your help! Have a good day! ###STOP###",
+            "role": "assistant",
+            "tool_calls": null,
+            "function_call": null,
+            "provider_specific_fields": {
+              "refusal": null,
+              "reasoning": null
+            }
+          },
+          "provider_specific_fields": {
+            "native_finish_reason": "completed"
+          }
+        }
+      ],
+      "usage": {
+        "completion_tokens": 23,
+        "prompt_tokens": 1530,
+        "total_tokens": 1553,
+        "completion_tokens_details": {
+          "audio_tokens": 0,
+          "reasoning_tokens": 0,
+          "image_tokens": 0
+        },
+        "prompt_tokens_details": {
+          "audio_tokens": 0,
+          "cached_tokens": 1152,
+          "video_tokens": 0,
+          "cache_write_tokens": 0
+        },
+        "cost": 0.0003032,
+        "is_byok": false,
+        "cost_details": {
+          "upstream_inference_cost": 0.0003032,
+          "upstream_inference_prompt_cost": 0.0002664,
+          "upstream_inference_completions_cost": 3.68e-05
+        }
+      },
+      "provider": "OpenAI",
+      "service_tier": "default"
+    }
+  }
+}
