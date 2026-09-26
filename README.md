@@ -16,7 +16,26 @@ An agent provider registers promises, with a reserve, in an escrow contract. An 
 | `integrations/` | Hermes and OpenClaw adapters and the patches they need |
 | `scripts/` | Provider and verifier services, deployment, and the local demo |
 | `agent/` | The file agent used by the local demo |
-| `eval/` | The benchmark replay behind Table 1 and the captured runs it reads (see `eval/README.md`) |
+| `eval/` | Table 1: the benchmark replay with the captured runs it reads, the scope review, and the label check (`eval/README.md`) |
+| `practicality/` | Section 5.3: the measurement scripts and their recorded results (`practicality/README.md`) |
+
+## Reproducing the paper
+
+Every evaluation number in the paper reproduces offline from this repository. Each command prints the paper's value next to its own and exits 1 on any difference.
+
+```sh
+uv venv --python 3.12 .venv
+uv pip install -e packages/commons -e packages/sdk -r eval/requirements.txt "pytest>=9"
+```
+
+| Paper result | Command | Time |
+| --- | --- | --- |
+| Table 1: Violations, Detected, False alarms | `python -m eval.table1`, after restoring the data as in `eval/README.md` | 5 min |
+| Table 1: With added records; 51 checks on 183 examples | `python -m eval.scope_verification.reproduce` | seconds |
+| Released labels, recomputed from the model votes | `python -m eval.labeling.check_labels --annotations <annotations release>` | seconds |
+| Section 5.3 and its appendix | `python practicality/analyze.py` | 1 s |
+
+The agent runs are replayed from their captured traces, not re-run, because re-running them needs paid model APIs; `eval/labeling/committee.py` re-labels the runs with your own OpenRouter key. The measurement scripts re-run on a local Anvil chain (`practicality/README.md`). A mainnet re-run needs your own funded wallet; all 180 mainnet transactions can be checked on Basescan.
 
 ## Claim flow
 
@@ -32,7 +51,7 @@ Requirements: Python 3.11 or later, Foundry, and an Anthropic API key for the de
 
 ```sh
 python -m venv .venv
-.venv/bin/pip install -e packages/commons -e packages/sdk -e packages/store -e packages/verifier anthropic "uvicorn[standard]"
+.venv/bin/pip install -e packages/commons -e packages/sdk -e packages/verifier anthropic fastapi pydantic "uvicorn[standard]"
 cd contracts && forge install foundry-rs/forge-std --no-git && forge build && forge test && cd ..
 .venv/bin/python -m pytest -q packages
 ```
