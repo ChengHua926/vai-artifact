@@ -2,12 +2,12 @@
 
 From the repository root, with packages/commons, packages/sdk and pytest installed:
 
-    python -m eval.scope_verification.reproduce
+    python -m eval.added_records.reproduce
 
-The script first restores eval/reference_v2/scope_review_v5/appendix.json (the frozen
+The script first restores eval/data/added_records/appendix.json (the frozen
 rule-scope review) from its base64 parts. By hand, that is
-    cat eval/reference_v2/scope_review_v5/appendix.tar.gz.b64.part* | base64 -d > appendix.tar.gz
-    tar xzf appendix.tar.gz -C eval/reference_v2/scope_review_v5
+    cat eval/data/added_records/appendix.tar.gz.b64.part* | base64 -d > appendix.tar.gz
+    tar xzf appendix.tar.gz -C eval/data/added_records
 with the archive's SHA256 in appendix.tar.gz.sha256. It then runs the scope tests and:
 
 1. runs every proposed check on its constructed examples through the SDK recording path
@@ -36,13 +36,13 @@ import tarfile
 
 ROOT = Path(__file__).resolve().parents[2]
 EVAL = ROOT / 'eval'
-FROZEN = Path(__file__).resolve().parent / 'frozen'
-REVIEW_DIR = EVAL / 'reference_v2/scope_review_v5'
+FROZEN = EVAL / 'data/added_records'
+REVIEW_DIR = EVAL / 'data/added_records'
 APPENDIX = REVIEW_DIR / 'appendix.json'
 APPENDIX_SHA256 = '24eca84b66c473ad3b3a5fa17d8882f0802da1e6a1a5f643af33d63f8b18d63b'
 TESTS = ['packages/commons/tests/test_constraints.py', 'packages/commons/tests/test_policy_profiles.py',
          'packages/commons/tests/test_structured_workflow.py', 'packages/sdk/tests/test_authorization.py',
-         'eval/scope_verification']
+         'eval/added_records']
 PANELS = [('AgentDojo', 'GLM-4.7-Flash', 'agentdojo', 'glm47'),
           ('AgentDojo', 'Qwen3-30B-A3B', 'agentdojo', 'qwen3_30b'),
           ('tau3-bench', 'GLM-4.7-Flash', 'tau', 'glm47'),
@@ -103,10 +103,10 @@ def added_records(rows, support, lost):
     from .initial_policy_scope import REVIEW
     from .obligations import obligation_catalog, per_case_links
     from .report import partition, validate_link_universe
-    outbound = FROZEN / 'agentdojo_outbound_v2'
+    outbound = FROZEN / 'agentdojo_outbound'
     links = per_case_links(EVAL, outbound)
     validate_link_universe(links, json.loads(APPENDIX.read_text()), jsonl(outbound / 'case_deltas.jsonl'),
-                           jsonl(EVAL / 'paper_main_v1/agentdojo/grader_contracts.jsonl'))
+                           jsonl(EVAL / 'data/runs/agentdojo/grader_contracts.jsonl'))
     result = partition(links, obligation_catalog(), rows)
     counts = {tuple(key.split('/', 1)): value for key, value in result['counts'].items()}
     # Four AgentDojo attacks detected under the original destination list are missed once the
@@ -127,7 +127,7 @@ def added_records(rows, support, lost):
 def detected(lost, appendix):
     """Frozen detection results per (benchmark, model): (violations, detected)."""
     summary = json.loads((FROZEN / 'agentdojo_initial_destinations/summary.json').read_text())['models']
-    runs = [row for row in jsonl(FROZEN / 'agentdojo_outbound_v2/case_deltas.jsonl')
+    runs = [row for row in jsonl(FROZEN / 'agentdojo_outbound/case_deltas.jsonl')
             if row['reference_group'] == 'successful_attack']
     result = {}
     for model in ('glm47', 'qwen3_30b'):

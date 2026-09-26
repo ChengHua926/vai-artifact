@@ -14,7 +14,7 @@ from pathlib import Path
 from aa_commons import ActionRecord, registry, trace_hash, params_hash, policy_profiles
 from aa_sdk import Accountability
 from aa_commons import policy_engine as predicates
-from eval.reference_v2.tau import adapter as tau_adapter
+from eval.catalog_replay.tau import adapter as tau_adapter
 from eval.clawsbench.analysis import adapter as claws_adapter
 
 IMPLEMENTATION_ID = 'shared_catalog_v1'
@@ -38,8 +38,8 @@ ARMS = {
                    'read_before_mutation','identical_call_cap'),
 }
 SOURCE_PATHS = (
-    'eval/reference_v2/runtime.py',
-    'eval/reference_v2/tau/adapter.py', 'eval/reference_v2/tau/promises.py',
+    'eval/catalog_replay/runtime.py',
+    'eval/catalog_replay/tau/adapter.py', 'eval/catalog_replay/tau/promises.py',
     'eval/clawsbench/analysis/adapter.py', 'eval/clawsbench/analysis/promises.py',
     'eval/clawsbench/analysis/environment_contract.py',
 )
@@ -58,8 +58,8 @@ def source_bundle():
 
 def ensure_registered():
     # Old commitments retain the exact frozen code, never the upgraded adapters.
-    from . import legacy_v4
-    legacy_v4.ensure_registered()
+    from . import frozen_evaluator
+    frozen_evaluator.ensure_registered()
     bundle = source_bundle()
     return {benchmark: policy_profiles.register(policy_profiles.ObservationProfile(
         profile_id=benchmark, version=1, build=observe_records,

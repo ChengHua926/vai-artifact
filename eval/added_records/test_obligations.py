@@ -9,9 +9,9 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def module(name):
     try:
-        return importlib.import_module('eval.scope_verification.' + name)
+        return importlib.import_module('eval.added_records.' + name)
     except ModuleNotFoundError as error:
-        if error.name == 'eval.scope_verification.' + name:
+        if error.name == 'eval.added_records.' + name:
             return None
         raise
 
@@ -20,7 +20,7 @@ class ObligationTests(unittest.TestCase):
     def test_every_retained_could_citation_has_an_explicit_disposition(self):
         mapping = module('obligations')
         self.assertIsNotNone(mapping, 'obligation-level mapping is not implemented')
-        frozen = json.loads((ROOT / 'eval/reference_v2/scope_review_v5/appendix.json').read_text())
+        frozen = json.loads((ROOT / 'eval/data/added_records/appendix.json').read_text())
         links = mapping.per_case_links(ROOT / 'eval', None)
         expected = {(p['suite'], p['task_id'], p['rule_id']) for p in frozen['task_rules']}
         actual = {(p['suite'], p['task'], p['rule_id']) for p in links}

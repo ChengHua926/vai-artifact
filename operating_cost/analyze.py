@@ -1,7 +1,7 @@
 """Print every operating-cost number of Section 5.3 and its appendix from the recorded results.
 
-Usage: python practicality/analyze.py
-Standard library only; reads practicality/results/ and writes nothing. Prints each number next to
+Usage: python operating_cost/analyze.py
+Standard library only; reads operating_cost/results/ and writes nothing. Prints each number next to
 the value printed in the paper and exits 1 if any differs.
 
 Inputs (V2 runs of 2026-09-25, one prototype revision):

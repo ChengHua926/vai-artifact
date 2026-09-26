@@ -309,7 +309,7 @@ def ready(url, proc):
 
 def source_snapshot(output):
     names = subprocess.check_output(["git", "ls-files", "-co", "--exclude-standard"], cwd=ROOT, text=True).splitlines()
-    selected = sorted(set(name for name in names if name.startswith(("packages/", "contracts/src/", "scripts/", "practicality/"))
+    selected = sorted(set(name for name in names if name.startswith(("packages/", "contracts/src/", "scripts/", "operating_cost/"))
                           and Path(name).suffix in {".py", ".sol", ".toml", ".txt"}))
     hashes = {}
     for name in selected:

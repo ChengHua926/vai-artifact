@@ -144,7 +144,7 @@ def validate_link_universe(links, appendix, cases, contracts):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--reference-root", type=Path, required=True,
-                        help="Prototype eval directory containing paper_main_v1 and reference_v2")
+                        help="Prototype eval directory containing paper_main_v1 and catalog_replay")
     parser.add_argument("--agentdojo-results", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -156,10 +156,10 @@ def main():
         raise ValueError("use a fresh output directory; preserve previous results")
     from .obligations import obligation_catalog, per_case_links
     from .fixtures import run_all
-    inputs = [args.reference_root / "reference_v2/scope_review_v5/appendix.json",
-              args.reference_root / "reference_v2/scope_review_v5/task_partition.json",
-              args.reference_root / "reference_v2/presentation_v4/tasks.jsonl",
-              args.reference_root / "paper_main_v1/agentdojo/grader_contracts.jsonl",
+    inputs = [args.reference_root / "data/added_records/appendix.json",
+              args.reference_root / "data/added_records/task_partition.json",
+              args.reference_root / "catalog_replay/presentation_v4/tasks.jsonl",
+              args.reference_root / "data/runs/agentdojo/grader_contracts.jsonl",
               args.agentdojo_results / "case_deltas.jsonl",
               args.agentdojo_results / "summary.json"]
     before = {str(p.resolve()): _sha(p) for p in inputs}

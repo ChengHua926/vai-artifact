@@ -28,7 +28,7 @@ from aa_commons import PredicateSpec, registry
 from aa_commons.ids import predicate_hash
 
 
-SOURCE_FILE = Path(__file__).with_name("baseline_v4_sources.json")
+SOURCE_FILE = Path(__file__).with_name("frozen_evaluator_sources.json")
 PREDICATE_HASH = "0x69b4c18eea4a77458460d504f5e4babc6c75c6e82d49c9f2be7cae89a6856c8c"
 _ROOT = Path(__file__).resolve().parents[2]
 _LOCK = RLock()
@@ -81,6 +81,7 @@ def _load_frozen(source_bundle: str) -> ModuleType:
             return modules[full_name.split(".")[0]]
         return builtins.__import__(name, globals, locals, fromlist, level)
 
+    # Module names inside the sealed bundle keep their original paths (eval/reference_v2/...).
     frozen = load("eval.reference_v2.runtime")
     # Include even helpers not traversed by a given trace, so they can never
     # resolve through mutable eval modules later.

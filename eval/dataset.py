@@ -29,7 +29,7 @@ _LEAF_SIDECARS = frozenset({"ROOT_SHA256", "SHA256SUMS"})
 _PAPER_MAIN_V1_ORIGINAL_OUTER_SHA256 = (
     "257ad5b0eb5aac1b6d311625c77ce017bb0421a0311e1da8478d66ad9ea60d76"
 )
-PAPER_MAIN_V1_ROOT = Path(__file__).resolve().parent / "paper_main_v1"
+PAPER_MAIN_V1_ROOT = Path(__file__).resolve().parent / "data" / "runs"
 PAPER_MAIN_V1_LOCK = PAPER_MAIN_V1_ROOT / "cohort.lock.json"
 PAPER_MAIN_V1_METADATA = PAPER_MAIN_V1_ROOT / "dataset.json"
 

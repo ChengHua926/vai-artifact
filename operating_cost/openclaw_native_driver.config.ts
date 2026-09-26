@@ -20,7 +20,7 @@ export default {
     ...sharedVitestConfig.test,
     dir: path.resolve(directory, ".."),
     name: "openclaw-recording-cost",
-    include: ["practicality/openclaw_native_driver.test.ts"],
+    include: ["operating_cost/openclaw_native_driver.test.ts"],
     setupFiles: [],
     globalSetup: [],
     isolate: true,

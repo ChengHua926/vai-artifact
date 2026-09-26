@@ -3,7 +3,7 @@
 Reproduces the September 16 Base mainnet settlement matrix after the protocol change: the provider sends
 nothing on chain in answer to a claim. Its service delivers signed evidence to the verifier's
 inbox, and the verifier's service settles every accepted claim. No model calls; approval
-answers are controlled. practicality/README.md describes the runs.
+answers are controlled. operating_cost/README.md describes the runs.
 
 Processes. This driver is the provider's native Hermes runtime (dispatcher, approval hooks,
 adapter and SDK with the provider key) and the challenger (challenger key). It deploys the
@@ -62,8 +62,8 @@ def _load(path, name):
 
 # September 25 handoff driver: paced RPC with identical retries, wallet loading and address
 # checks, receipt fee accounting, build validation, child-process and readiness helpers.
-H = _load(ROOT / "practicality/measure_handoff.py", "settlement_handoff_helpers")
-native_pin = _load(ROOT / "practicality/native_pin.py", "native_pin")
+H = _load(ROOT / "operating_cost/measure_handoff.py", "settlement_handoff_helpers")
+native_pin = _load(ROOT / "operating_cost/native_pin.py", "native_pin")
 
 import requests  # noqa: E402
 from eth_abi import encode as abi_encode  # noqa: E402
@@ -87,7 +87,7 @@ STRATEGIES = {"10_records_or_30s": (10, 30), "30_records_or_60s": (30, 60),
               "final_only": (10**9, 86400)}
 FORMAL_PYTHON = (3, 12, 13)
 KEYSTORE_DIR = H.PRIVATE / "roles"
-DEFAULT_MAINNET_OUTPUT = ROOT / "practicality/results/new-run"
+DEFAULT_MAINNET_OUTPUT = ROOT / "operating_cost/results/new-run"
 ANVIL = Path.home() / ".foundry/bin/anvil"
 ANVIL_MNEMONIC = "test test test test test test test test test test test junk"
 L1_ORACLE = "0x420000000000000000000000000000000000000F"
@@ -176,7 +176,7 @@ def planned_operations(deploy=True):
     return {"deploy": 1, **ops} if deploy else ops
 
 
-# Identical to practicality/native_hermes_original.py.txt, which checkpoint_refresh.py runs.
+# Identical to operating_cost/native_hermes_original.py.txt, which checkpoint_refresh.py runs.
 class NativeHermes:
     """Actual patched dispatch/approval hooks with controlled ACP user responses."""
     def __init__(self, hermes_root, fixtures):
@@ -839,7 +839,7 @@ def git_state():
     return run("rev-parse", "HEAD"), run("status", "--porcelain"), run("diff", "--stat", "HEAD")
 
 
-SNAPSHOT_PREFIXES = ("packages/", "contracts/src/", "scripts/", "practicality/", "integrations/hermes/aa_hermes/")
+SNAPSHOT_PREFIXES = ("packages/", "contracts/src/", "scripts/", "operating_cost/", "integrations/hermes/aa_hermes/")
 SNAPSHOT_SUFFIXES = {".py", ".sol", ".toml", ".txt", ".yaml", ".md", ".ts", ".json"}
 
 

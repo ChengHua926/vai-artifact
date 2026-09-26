@@ -140,7 +140,7 @@ def per_case_links(reference_root, agentdojo_results=None):
     preserved outbound-v2 results directory; None selects only Tau/ClawsBench.
     """
     reference_root = Path(reference_root)
-    source = reference_root / 'reference_v2/scope_review_v5/appendix.json'
+    source = reference_root / 'data/added_records/appendix.json'
     appendix = json.loads(source.read_text())
     digest = hashlib.sha256(source.read_bytes()).hexdigest()
     links = []
@@ -167,7 +167,7 @@ def per_case_links(reference_root, agentdojo_results=None):
         })
     if agentdojo_results is None:
         return links
-    contracts_path = reference_root / 'paper_main_v1/agentdojo/grader_contracts.jsonl'
+    contracts_path = reference_root / 'data/runs/agentdojo/grader_contracts.jsonl'
     contracts = {(r['suite'], r['injection_task_id']): r for r in
                  (json.loads(line) for line in contracts_path.read_text().splitlines() if line.strip())}
     results_path = Path(agentdojo_results) / 'case_deltas.jsonl'

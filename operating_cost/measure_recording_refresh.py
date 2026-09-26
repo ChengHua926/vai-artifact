@@ -36,7 +36,7 @@ sys.path.insert(0, str(REPO / "scripts"))
 # Set before importing _config; none of its wallet-reading helpers are called.
 os.environ["AA_LOCAL"] = "1"
 import _config as C
-import native_pin  # practicality/native_pin.py
+import native_pin  # operating_cost/native_pin.py
 C.bootstrap_packages()
 from aa_commons import ActionRecord, params_hash, registry, trace_hash
 from aa_commons.trace import check_prefixes
@@ -193,7 +193,7 @@ def runtime(args, chain, services):
     native = native_setup(args)
     directory = args.output / "native-files"
     directory.mkdir()
-    content = ("native Hermes practicality fixture\n" * 40)[:1024]
+    content = ("native Hermes operating_cost fixture\n" * 40)[:1024]
     workload = [{"path": str(directory / f"record-{i:04d}.txt"), "content": content} for i in range(args.actions)]
     dump(args.output / "native-workload.json", workload)
     rng = random.Random(args.seed)
@@ -223,7 +223,7 @@ def runtime(args, chain, services):
         action_start = time.perf_counter()
         try:
             for i, entry in enumerate(workload):
-                result, duration = elapsed(lambda: native.dispatch("write_file", entry, task_id="practicality-native", session_id=sid, tool_call_id=f"call-{i}"))
+                result, duration = elapsed(lambda: native.dispatch("write_file", entry, task_id="operating_cost-native", session_id=sid, tool_call_id=f"call-{i}"))
                 latency.append(duration)
                 parsed = json.loads(result)
                 if parsed.get("error"):
@@ -337,7 +337,7 @@ def source_paths(harness):
                      if p.is_file() and p.suffix in {".py", ".ts", ".json", ".patch"}
                      and "node_modules" not in p.parts and "__pycache__" not in p.parts)
     if harness == "openclaw":
-        paths.update(p for p in (REPO / "practicality").glob("*openclaw*") if p.is_file())
+        paths.update(p for p in (REPO / "operating_cost").glob("*openclaw*") if p.is_file())
     return sorted(paths)
 
 

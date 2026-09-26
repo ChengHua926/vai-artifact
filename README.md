@@ -14,10 +14,9 @@ An agent provider registers promises, with a reserve, in an escrow contract. An 
 | `packages/store/` | The provider's trace store (HTTP and SQLite, provider-only access) |
 | `packages/verifier/` | The verifier's evidence inbox and claim adjudication |
 | `integrations/` | Hermes and OpenClaw adapters and the patches they need |
-| `scripts/` | Provider and verifier services, deployment, and the local demo |
-| `agent/` | The file agent used by the local demo |
-| `eval/` | Table 1: the benchmark replay with the captured runs it reads, the scope review, and the label check (`eval/README.md`) |
-| `practicality/` | Section 5.3: the measurement scripts and their recorded results (`practicality/README.md`) |
+| `scripts/` | Provider and verifier services, deployment, and the local demo with its file agent |
+| `eval/` | Table 1: the recorded runs and labels it reads, the replay, the added-records check, and the label check (`eval/README.md`) |
+| `operating_cost/` | Section 5.3 and its appendix: the recorded results, the script that recomputes every number from them, and the measurement scripts (`operating_cost/README.md`) |
 
 ## Reproducing the paper
 
@@ -31,11 +30,11 @@ uv pip install -e packages/commons -e packages/sdk -r eval/requirements.txt "pyt
 | Paper result | Command | Time |
 | --- | --- | --- |
 | Table 1: Violations, Detected, False alarms | `python -m eval.table1`, after restoring the data as in `eval/README.md` | 5 min |
-| Table 1: With added records; 51 checks on 183 examples | `python -m eval.scope_verification.reproduce` | seconds |
+| Table 1: With added records; 51 checks on 183 examples | `python -m eval.added_records` | seconds |
 | Released labels, recomputed from the model votes | `python -m eval.labeling.check_labels --annotations <annotations release>` | seconds |
-| Section 5.3 and its appendix | `python practicality/analyze.py` | 1 s |
+| Section 5.3 and its appendix | `python operating_cost/analyze.py` | 1 s |
 
-The agent runs are replayed from their captured traces, not re-run, because re-running them needs paid model APIs; `eval/labeling/committee.py` re-labels the runs with your own OpenRouter key. The measurement scripts re-run on a local Anvil chain (`practicality/README.md`). A mainnet re-run needs your own funded wallet; all 180 mainnet transactions can be checked on Basescan.
+The agent runs and the LLM labeling are not re-run, because both need paid model APIs: the evaluation replays the recorded runs and reads the released votes. The measurement scripts re-run on a local Anvil chain (`operating_cost/README.md`). A mainnet re-run needs your own funded wallet; all 180 mainnet transactions can be checked on Basescan.
 
 ## Claim flow
 

@@ -34,7 +34,7 @@ from web3 import Web3
 from aa_commons import ActionRecord, trace_hash
 from aa_commons.trace import check_prefixes
 from aa_sdk.chain import EscrowClient
-import native_pin  # practicality/native_pin.py
+import native_pin  # operating_cost/native_pin.py
 
 # Public September 16 inputs (funding.json, mainnet04/evidence.json reused_deployment), read by
 # public_metadata() on every run, including local ones.
@@ -381,13 +381,13 @@ def run(args):
                 "timed_scope": "native write dispatch through actual plugin HTTP/helper/store plus session finalization; setup excluded",
                 "helper_request_timeout_seconds": 120 if args.network == "mainnet" else 5,
                 "scripts_sha256": {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
-                                   for p in (ROOT / "practicality").glob("*openclaw*") if p.is_file()}}
+                                   for p in (ROOT / "operating_cost").glob("*openclaw*") if p.is_file()}}
     source_paths = [p for directory in (ROOT / "packages/sdk/aa_sdk", ROOT / "packages/commons/aa_commons",
                     ROOT / "integrations/openclaw/aa_openclaw", ROOT / "integrations/openclaw/aa_helper",
                     ROOT / "integrations/openclaw/plugin/src")
                     for p in directory.rglob("*") if p.is_file() and p.suffix in {".py", ".ts"}]
     source_paths.append(ROOT / "packages/store/app.py")
-    source_paths.extend(p for p in (ROOT / "practicality").glob("*openclaw*") if p.is_file())
+    source_paths.extend(p for p in (ROOT / "operating_cost").glob("*openclaw*") if p.is_file())
     manifest["protocol_source_sha256"] = {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
                                          for p in source_paths}
     for source in source_paths:
@@ -404,7 +404,7 @@ def run(args):
     dump(args.output / "manifest.json", manifest)
     with services(args):
         command = [str(NODE), str(OPENCLAW / "node_modules/vitest/vitest.mjs"), "run", "--config",
-                   str(ROOT / "practicality/openclaw_native_driver.config.ts")]
+                   str(ROOT / "operating_cost/openclaw_native_driver.config.ts")]
         env = {**os.environ, "PATH": str(NODE.parent) + os.pathsep + os.environ["PATH"],
                "AA_MEASUREMENT_JOB": str(args.output / "jobs.json"),
                "AA_MEASUREMENT_OUTPUT": str(args.output / "native-results.json")}

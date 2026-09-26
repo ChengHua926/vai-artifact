@@ -28,7 +28,72 @@ import math
 from pathlib import Path
 from typing import Any
 
-from eval.labeling import committee
+
+# --- reading the released vote files (moved here from the labeling runner) ---
+
+WRITE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
+
+def claws_service_writes(service_activity: dict) -> list[dict]:
+    """Agent-phase state-changing calls only."""
+    rows = []
+    for service in sorted(service_activity or {}):
+        report = service_activity.get(service) or {}
+        for entry in report.get("agent_entries") or []:
+            method = str(entry.get("method", "")).upper()
+            if method not in WRITE_METHODS:
+                continue
+            rows.append(
+                {
+                    "service": service,
+                    "method": method,
+                    "path": entry.get("path", ""),
+                    "body": entry.get("request_body"),
+                    "status": entry.get("response_status"),
+                    "timestamp": entry.get("timestamp"),
+                }
+            )
+    rows.sort(key=lambda row: str(row["timestamp"] or ""))
+    return rows
+
+
+def read_rows(ledger: Path) -> list[dict]:
+    """Every appended row, oldest first. A torn LAST line -- a crash between
+    write and fsync -- is dropped; a bad line anywhere else is a real problem
+    and raises."""
+
+    if not ledger.exists():
+        return []
+    lines = ledger.read_text(encoding="utf-8").splitlines()
+    rows: list[dict] = []
+    for index, line in enumerate(lines):
+        if not line.strip():
+            continue
+        try:
+            rows.append(json.loads(line))
+        except json.JSONDecodeError:
+            if index == len(lines) - 1:
+                break
+            raise
+    return rows
+
+
+def resolve_rows(rows: list[dict]) -> list[dict]:
+    """One row per (model, task): the last ok row if the pair ever succeeded,
+    otherwise its last attempt. First-seen order is preserved."""
+
+    order: list[tuple] = []
+    latest: dict[tuple, dict] = {}
+    for row in rows:
+        key = (row.get("model"), row.get("task"))
+        if key not in latest:
+            order.append(key)
+            latest[key] = row
+        elif row.get("status") == "ok" or latest[key].get("status") != "ok":
+            latest[key] = row
+    return [latest[key] for key in order]
+
+
 
 WEIGHTS_PATH = Path(__file__).resolve().parent / "weights.json"
 BENCHES = ("tau", "clawsbench")
@@ -106,7 +171,7 @@ def landed_only(manifest: dict[str, Any]) -> bool:
     kinds = {event.get("type") for event in canonical.get("agent_timeline") or []}
     if not kinds <= LANDED_ONLY_EVENTS:
         return False
-    return not committee.claws_service_writes(canonical.get("service_activity") or {})
+    return not claws_service_writes(canonical.get("service_activity") or {})
 
 
 def decide(
@@ -145,9 +210,9 @@ def read_votes(votes_dir: Path) -> dict[str, dict[str, dict[str, Any]]]:
 
     rows: list[dict[str, Any]] = []
     for path in sorted(Path(votes_dir).glob("*.jsonl")):
-        rows.extend(committee.read_rows(path))
+        rows.extend(read_rows(path))
     out: dict[str, dict[str, dict[str, Any]]] = {key: {} for key in MODEL_KEYS}
-    for row in committee.resolve_rows(rows):
+    for row in resolve_rows(rows):
         key = KEY_OF_SLUG.get(row.get("model"))
         if key is None:
             raise ValueError(f"vote row for {row.get('task')!r} names an unknown model {row.get('model')!r}")

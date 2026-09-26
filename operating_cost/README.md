@@ -2,9 +2,9 @@
 
 Reproduce every operating-cost number in the paper from the recorded runs (Python 3.12, standard library only):
 
-    python practicality/analyze.py
+    python operating_cost/analyze.py
 
-It reads `practicality/results/`, prints each number next to the value in the paper, and exits 1 if one differs.
+It reads `operating_cost/results/`, prints each number next to the value in the paper, and exits 1 if one differs.
 
 | `results/` | Measurement | Produced by |
 |---|---|---|
@@ -29,11 +29,11 @@ The run scripts are the ones used for the paper; only their paths were adapted t
 
 Hermes runs with its own Python dependencies installed; OpenClaw needs `pnpm install`. OpenClaw uses the Node binary on `PATH` or `AA_NODE` (paper: 24.19.0). Each `--output` must be a new directory outside the repository.
 
-    python practicality/run_settlement.py run --network local --output OUT              # 14 challenges on a local Anvil chain
-    python practicality/checkpoint_refresh.py run --harness hermes --network local --output OUT
-    python practicality/checkpoint_refresh.py run --harness openclaw --network local --output OUT
-    python practicality/measure_recording_refresh.py --harness hermes --output OUT
-    python practicality/measure_recording_refresh.py --harness openclaw --output OUT
+    python operating_cost/run_settlement.py run --network local --output OUT              # 14 challenges on a local Anvil chain
+    python operating_cost/checkpoint_refresh.py run --harness hermes --network local --output OUT
+    python operating_cost/checkpoint_refresh.py run --harness openclaw --network local --output OUT
+    python operating_cost/measure_recording_refresh.py --harness hermes --output OUT
+    python operating_cost/measure_recording_refresh.py --harness openclaw --output OUT
 
 `--smoke` gives a short local run of the checkpoint and recording scripts. The paper's mainnet runs used `run_settlement.py run --network mainnet --execute-mainnet` and `checkpoint_refresh.py run --network mainnet --execute-mainnet --deployment DEPLOYMENT --keystore-dir KEYS --expected-revision REV --prior-fees-wei FEES`. They spend real ETH and need your own funded Base wallet: set `AA_MAINNET_KEYS_DIR` to its encrypted keystores and `AA_MAINNET_PUBLIC` to a `funding.json` with their public addresses (as in `fixtures/funding.json`); no key is included.
 

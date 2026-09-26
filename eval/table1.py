@@ -4,7 +4,7 @@ AgentDojo: regenerate the frozen ledgers from the sealed corpus, then replay the
 outbound (AAP-4) check with the initial-destinations allowlist through
 eval.agentdojo.outbound_review and eval.agentdojo.allowlist_sensitivity.
 tau3-bench and ClawsBench: evaluate the captured action records with the shared
-AAP catalog (eval.reference_v2.runtime) and cross-tabulate against the reference
+AAP catalog (eval.catalog_replay.runtime) and cross-tabulate against the reference
 labels of the annotations release. The tau3-bench records are first re-derived
 from the sealed corpus and must equal the captured ones.
 
@@ -13,7 +13,7 @@ eval/README.md):
 
     python -m eval.table1
 
-The reference labels are read from eval/data/annotations (copies of the four
+The reference labels are read from eval/data/labels (copies of the four
 label files of the annotations release); --annotations points elsewhere.
 """
 from __future__ import annotations
@@ -29,10 +29,10 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 DATA = REPO / "eval" / "data"
-PAPER = REPO / "eval" / "paper_main_v1"
-RECORDS = DATA / "captured_records.jsonl.gz"
+PAPER = REPO / "eval" / "data" / "runs"
+RECORDS = DATA / "records" / "captured_records.jsonl.gz"
 RECORDS_SHA256 = "7545131853ca44a0a0975011e91b18e22f73db7a87c95a02789dffa4bb14f371"
-ANNOTATIONS = DATA / "annotations"
+ANNOTATIONS = DATA / "labels"
 REVIEW_FILES = ("other_objective_alarms.jsonl", "other_objective_cases.jsonl",
                 "benign-actions.json", "benign-runs.json", "resisted-other-actions.json")
 # The two message-format checks are not part of the reported promise set
@@ -57,7 +57,7 @@ def read_rows(path: Path) -> list[dict]:
 
 
 def agentdojo_ledgers() -> None:
-    """Regenerate eval/paper_main_v1/agentdojo from the corpus and check its hashes."""
+    """Regenerate eval/data/runs/agentdojo from the corpus and check its hashes."""
     from eval.run import generate_benchmark_bundle
     ledger = PAPER / "agentdojo"
     if not (ledger / "cases.jsonl").is_file():
@@ -74,12 +74,12 @@ def agentdojo_ledgers() -> None:
 
 
 def review_root(work: Path) -> Path:
-    """Key the reviews by this copy's case ids (eval/paper_main_v1/case_id_map.json)."""
+    """Key the reviews by this copy's case ids (eval/data/runs/case_id_map.json)."""
     mapping = json.loads((PAPER / "case_id_map.json").read_text())["agentdojo"]
     root = work / "reviews"
     root.mkdir()
     for name in REVIEW_FILES:
-        source = DATA / "agentdojo-reviews" / name
+        source = DATA / "reviews" / name
         rows = read_rows(source) if name.endswith(".jsonl") else json.loads(source.read_text())
         for row in rows:
             if row["case_id"] not in mapping:
@@ -126,7 +126,7 @@ def labels(annotations: Path) -> dict:
 
 def check_tau_records(captures: list[dict]) -> None:
     """Re-derive the tau3-bench records from the sealed corpus; they must be identical."""
-    from eval.reference_v2 import runtime
+    from eval.catalog_replay import runtime
     from eval.tau.corpus import load_tau_cases
     paper_id = {new: old for old, new in json.loads((PAPER / "case_id_map.json").read_text())["tau"].items()}
     captured = {c["task"]: c for c in captures if c["benchmark"].startswith("tau_")}
@@ -145,7 +145,7 @@ def check_tau_records(captures: list[dict]) -> None:
 
 def tau_and_claws(annotations: Path) -> dict:
     from aa_commons import ActionRecord
-    from eval.reference_v2 import runtime
+    from eval.catalog_replay import runtime
     if sha256(RECORDS) != RECORDS_SHA256:
         raise SystemExit(f"{RECORDS.relative_to(REPO)} is missing or differs from the frozen capture")
     captures = [json.loads(line) for line in gzip.decompress(RECORDS.read_bytes()).splitlines() if line]
@@ -195,12 +195,12 @@ def print_table(result: dict) -> bool:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--annotations", type=Path, default=ANNOTATIONS,
-                        help="root holding tau/ and clawsbench/ labels (default: eval/data/annotations)")
+                        help="root holding tau/ and clawsbench/ labels (default: eval/data/labels)")
     parser.add_argument("--work", type=Path,
                         help="empty directory outside the repository for intermediate AgentDojo outputs")
     args = parser.parse_args()
     if not (PAPER / "corpus").is_dir():
-        raise SystemExit("restore the corpus first: python -m eval.run fetch --archive eval/data/paper_main_v1-corpus.tar.gz")
+        raise SystemExit("restore the corpus first: python -m eval.run fetch --archive eval/data/runs/paper_main_v1-corpus.tar.gz")
     work = args.work or Path(tempfile.mkdtemp(prefix="table1-"))
     keep = args.work is not None
     work.mkdir(parents=True, exist_ok=True)

@@ -1,7 +1,7 @@
 """Reporting must not turn partial fixtures into proven historical coverage."""
 import pytest
 
-from eval.scope_verification.report import partition
+from eval.added_records.report import partition
 
 
 def link(case, rule, categories, obligation=None):

@@ -1,7 +1,7 @@
 """Offline, separately versioned replay of frozen AgentDojo outbound evidence.
 
 Never writes paper_main_v1, invokes a model, or changes a reference label.
-Usage: python -m eval.agentdojo.outbound_review --reference-root .../paper_main_v1
+Usage: python -m eval.agentdojo.outbound_review --reference-root .../eval/data/runs
        --audit-root .../agentdojo-reason-audit-20260916 --output .../outbound-v2
 """
 from __future__ import annotations

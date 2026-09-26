@@ -33,7 +33,7 @@ from urllib.parse import urlparse
 
 REPO = Path(__file__).resolve().parents[1]
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
-ORIGINAL_MEMBER = "scripts/practicality/measure_local.py"
+ORIGINAL_MEMBER = "scripts/operating_cost/measure_local.py"
 ORIGINAL_SHA256 = "4445b92268c814c9f494eff10e302b7069fb556287ee0187dcfdc3ab3de00bb6"
 CADENCES = ("final_only", "every_10_records")
 IMPLEMENTATIONS = ("legacy", "streaming")

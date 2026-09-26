@@ -3,7 +3,7 @@
 `python -m eval.table1` reproduces the Violations, Detected and False alarms columns of Table 1 offline. It makes no model calls and produces no labels.
 
 - AgentDojo. `eval.run` regenerates the frozen AgentDojo ledgers from the sealed corpus and checks them against `data/agentdojo-ledgers.SHA256SUMS`. `eval.agentdojo.outbound_review` then replays the outbound check (AAP-4) over all 2,162 captured runs, and `eval.agentdojo.allowlist_sensitivity` applies the calendar-participant allowlist and then the initial-destinations allowlist that the paper reports. Violations are the successful attacks. Detected counts the successful attacks with an alarm that matches the attack's harmful action. False alarms are the no-injection runs with any alarm.
-- tau3-bench and ClawsBench. `eval.reference_v2.runtime` evaluates the captured action records of all 388 runs with the shared AAP catalog, and the result is cross-tabulated against the final labels of the annotations release. The two message-format checks are not part of the reported promise set. Detected counts violation runs with an alarm; false alarms are no-violation runs with an alarm.
+- tau3-bench and ClawsBench. `eval.catalog_replay.runtime` evaluates the captured action records of all 388 runs with the shared AAP catalog, and the result is cross-tabulated against the final labels of the annotations release. The two message-format checks are not part of the reported promise set. Detected counts violation runs with an alarm; false alarms are no-violation runs with an alarm.
 
 ## Run
 
@@ -13,11 +13,11 @@ Python 3.12 and `uv`, from the repository root.
 uv venv --python 3.12 .venv
 uv pip install -e packages/commons -e packages/sdk -r eval/requirements.txt
 cd eval/data
-cat paper_main_v1-corpus.tar.gz.b64.part* | base64 -d > paper_main_v1-corpus.tar.gz
-cat captured_records.jsonl.gz.b64.part* | base64 -d > captured_records.jsonl.gz
+cat runs/paper_main_v1-corpus.tar.gz.b64.part* | base64 -d > runs/paper_main_v1-corpus.tar.gz
+cat records/captured_records.jsonl.gz.b64.part* | base64 -d > records/captured_records.jsonl.gz
 shasum -a 256 -c SHA256SUMS        # or: sha256sum -c SHA256SUMS
 cd ../..
-.venv/bin/python -m eval.run fetch --archive eval/data/paper_main_v1-corpus.tar.gz
+.venv/bin/python -m eval.run fetch --archive eval/data/runs/paper_main_v1-corpus.tar.gz
 .venv/bin/python -m eval.table1
 ```
 
@@ -39,12 +39,12 @@ All                               696       294        18/313
 
 | Path | Contents |
 | --- | --- |
-| `data/paper_main_v1-corpus.tar.gz.b64.part*` | The sealed tau3-bench and AgentDojo captures (`eval/paper_main_v1/cohort.lock.json` and `seal/` pin them) |
-| `data/captured_records.jsonl.gz.b64.part*` | The action records captured from the 328 tau3-bench runs and the 60 ClawsBench runs |
+| `data/runs/` | The recorded tau3-bench and AgentDojo runs as base64 parts of one sealed archive, with the manifests that pin them (`cohort.lock.json`, `seal/`) and `case_id_map.json`, which maps the paper's and the reviews' case ids to the ids this copy produces |
+| `data/records/` | The action records of the 328 tau3-bench runs and the 60 ClawsBench runs, as base64 parts |
 | `data/SHA256SUMS` | SHA-256 of the two reassembled archives |
 | `data/agentdojo-ledgers.SHA256SUMS` | SHA-256 of the frozen AgentDojo ledgers that `eval.run` regenerates |
-| `data/annotations/` | Copies of the four label files of the annotations release (`tau/index.json`, `tau/labels-1.jsonl`, `tau/labels-2.jsonl`, `clawsbench/labels.jsonl`), read by default; `--annotations` points elsewhere |
-| `data/agentdojo-reviews/` | The manual reviews of AgentDojo alarms (which alarms match the attack's harmful action, and whether flagged recipients in no-injection runs were authorized) |
-| `paper_main_v1/case_id_map.json` | Map from the case ids in the paper and the reviews to the ids this copy of the corpus produces |
+| `data/labels/` | Copies of the four label files of the annotations release (`tau/index.json`, `tau/labels-1.jsonl`, `tau/labels-2.jsonl`, `clawsbench/labels.jsonl`), read by default; `--annotations` points elsewhere |
+| `data/reviews/` | The manual reviews of AgentDojo alarms (which alarms match the attack's harmful action, and whether flagged recipients in no-injection runs were authorized) |
+| `data/added_records/` | The scope review behind "With added records" and the frozen AgentDojo inputs of the added-records check |
 
 The tau3-bench captures were made with tau2-bench upstream 8ebb749 plus a local trace-export patch; the patched commit id is withheld for anonymity and appears as `0000000000000000000000000000000000000000` in the captures, the seal and `eval/tau/`. Local paths inside the captures were rewritten for review and the seal was recomputed after both changes, so case ids derived from the corpus differ from the paper's. The review files keep the paper's case ids and local file pointers were removed from them; `eval.table1` maps the ids through `case_id_map.json` before the replay.

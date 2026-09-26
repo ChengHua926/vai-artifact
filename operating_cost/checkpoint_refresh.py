@@ -46,7 +46,7 @@ def load(path, name):
     spec.loader.exec_module(module)
     return module
 
-OC = load(ROOT/'practicality/measure_openclaw.py', 'original_openclaw_measurement')
+OC = load(ROOT/'operating_cost/measure_openclaw.py', 'original_openclaw_measurement')
 native_pin = load(HERE/'native_pin.py', 'native_pin')
 PAYOUT = OC.PAYOUT
 STRATEGIES = OC.STRATEGIES
@@ -70,7 +70,7 @@ def dump(path, value):
     OC.dump(path, value)
 
 
-# Copied from practicality/measure_handoff.py (September 25), which the V2 settlement
+# Copied from operating_cost/measure_handoff.py (September 25), which the V2 settlement
 # driver may replace: canonical receipt fee and the build-matches-source check.
 def number(value):
     return int(value, 16) if isinstance(value, str) and value.startswith("0x") else int(value)
@@ -169,7 +169,7 @@ def manifest():
     selected = []
     for prefix in ('packages/sdk/aa_sdk', 'packages/commons/aa_commons', 'packages/verifier/aa_verifier',
                    'integrations/hermes/aa_hermes', 'integrations/openclaw/aa_openclaw',
-                   'integrations/openclaw/aa_helper', 'integrations/openclaw/plugin/src', 'practicality'):
+                   'integrations/openclaw/aa_helper', 'integrations/openclaw/plugin/src', 'operating_cost'):
         selected += [p for p in (ROOT/prefix).rglob('*') if p.is_file() and p.suffix in ('.py', '.ts', '.json')]
     selected += [ROOT/'packages/store/app.py', ROOT/'contracts/src/Escrow.sol', ROOT/'contracts/out/Escrow.sol/Escrow.json', ROOT/'scripts/_config.py']
     return {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(set(selected))}
@@ -507,7 +507,7 @@ def openclaw(args):
                     'checkpoint_records':n,'checkpoint_seconds':seconds,'pause_after':2,'pause_seconds':args.pause,
                     'inter_write_seconds':args.interval})
             dump(args.output/'jobs.json',{'jobs':jobs})
-            command=[str(OC.NODE),str(OC.OPENCLAW/'node_modules/vitest/vitest.mjs'),'run','--config',str(ROOT/'practicality/openclaw_native_driver.config.ts')]
+            command=[str(OC.NODE),str(OC.OPENCLAW/'node_modules/vitest/vitest.mjs'),'run','--config',str(ROOT/'operating_cost/openclaw_native_driver.config.ts')]
             env={**os.environ,'PATH':str(OC.NODE.parent)+os.pathsep+os.environ['PATH'],
                  'AA_MEASUREMENT_JOB':str(args.output/'jobs.json'),'AA_MEASUREMENT_OUTPUT':str(args.output/'native-results.json')}
             with open(args.output/'native-driver.log','w') as driverlog:
