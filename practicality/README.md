@@ -18,7 +18,16 @@ All runs are from September 25, 2026, on one prototype revision. The 180 mainnet
 
 ## Rerunning the measurements
 
-The run scripts are the ones used for the paper; only their paths were adapted to this layout. Run them from the repository root with Python 3.12, the packages in `packages/`, Foundry (`anvil`; `cd contracts && forge build --skip test`), and the patched harnesses checked out next to the repository as `../hermes-agent` and `../openclaw` (`integrations/*/upstream.json` and `patches/`; the scripts check their revisions). OpenClaw uses the Node binary on `PATH` or `AA_NODE` (paper: 24.19.0). Each `--output` must be a new directory outside the repository.
+The run scripts are the ones used for the paper; only their paths were adapted to this layout. Run them from the repository root with Python 3.12, the packages in `packages/`, Foundry (`anvil`; `cd contracts && forge build --skip test`), and the two harnesses checked out next to the repository at the `commit` in `integrations/<harness>/upstream.json` with the release patch applied; the scripts refuse any other checkout:
+
+    git clone https://github.com/NousResearch/hermes-agent ../hermes-agent
+    git -C ../hermes-agent checkout 5e01a5dbf1b7bc0144d9057be706da1ea9f065c3
+    git -C ../hermes-agent apply "$PWD/integrations/hermes/patches/hermes-5e01a5d-native-authorization.patch"
+    git clone https://github.com/openclaw/openclaw ../openclaw
+    git -C ../openclaw checkout 89c90210fb90c3c1d1bd54d56cd7be00e59aeed4
+    git -C ../openclaw apply "$PWD/integrations/openclaw/patches/native-observation.patch"
+
+Hermes runs with its own Python dependencies installed; OpenClaw needs `pnpm install`. OpenClaw uses the Node binary on `PATH` or `AA_NODE` (paper: 24.19.0). Each `--output` must be a new directory outside the repository.
 
     python practicality/run_settlement.py run --network local --output OUT              # 14 challenges on a local Anvil chain
     python practicality/checkpoint_refresh.py run --harness hermes --network local --output OUT

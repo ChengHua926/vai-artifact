@@ -47,15 +47,15 @@ def load(path, name):
     return module
 
 OC = load(ROOT/'practicality/measure_openclaw.py', 'original_openclaw_measurement')
+native_pin = load(HERE/'native_pin.py', 'native_pin')
 PAYOUT = OC.PAYOUT
-HERMES_REVISION = '9801de7052b9f746791f96600ea19b9399de4b13'
 STRATEGIES = OC.STRATEGIES
 FEE_CEILING = 500 * 10**12
 FORMAL_PYTHON = (3, 12, 13)
 # Methodology of the September 25 matrices; any drift refuses to run.
 EXPECTED_STRATEGIES = {'10_records_or_30s': (10, 30), '30_records_or_60s': (30, 60), 'final_only': (10**9, 86400)}
 EXPECTED_PAYOUT = 10**10
-NATIVE_HERMES_SHA256 = '6f3e51fc0883b8e97582a7588491876366244ffbf4ec80248ac6eaa0b0711300'
+NATIVE_HERMES_SHA256 = 'b9212a31d71af9e2071a22948df85feef7531d3ff68a682fe1b57989e20ba910'
 ARTIFACT_PATH = 'contracts/out/Escrow.sol/Escrow.json'
 # Public role addresses of the existing experiment wallets; no key material. Mainnet only:
 # the funding.json named by AA_MAINNET_PUBLIC (unset, a nonexistent path).
@@ -160,12 +160,9 @@ def archive_manifest():
 
 
 def validate_native_sources():
-    for name,expected in (('hermes-agent',HERMES_REVISION),('openclaw',OC.OPENCLAW_REVISION)):
-        repo=ROOT.parent/name
-        actual=subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip()
-        dirty=subprocess.check_output(['git','status','--porcelain'],cwd=repo,text=True).strip()
-        if actual!=expected or dirty:
-            raise ValueError('native harness must match its clean pinned revision: '+name)
+    for name,harness in (('hermes-agent','hermes'),('openclaw','openclaw')):
+        if not native_pin.matches(ROOT.parent/name,harness):
+            raise ValueError('native harness must be its upstream.json commit with the release patch applied: '+name)
 
 
 def manifest():
@@ -221,7 +218,7 @@ def snapshot(args):
         'rpc_endpoint':OC.RPC if args.network=='mainnet' else args.rpc_url,
         'rpc_min_interval_seconds':.25 if args.network=='mainnet' else 0,
         'store_endpoint':args.store_url,'helper_endpoint':args.helper_url if args.harness=='openclaw' else None,
-        'native_revisions':{'hermes':HERMES_REVISION,'openclaw':OC.OPENCLAW_REVISION},
+        'native_revisions':{'hermes':native_pin.describe('hermes'),'openclaw':native_pin.describe('openclaw')},
         'fee_accounting':{'execution':'gasUsed * effectiveGasPrice','l1':'canonical receipt l1Fee',
                           'operator':'requires zero scalar and constant in L1Block before any signing'}})
     return hashes

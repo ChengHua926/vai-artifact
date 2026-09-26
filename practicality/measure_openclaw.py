@@ -34,6 +34,7 @@ from web3 import Web3
 from aa_commons import ActionRecord, trace_hash
 from aa_commons.trace import check_prefixes
 from aa_sdk.chain import EscrowClient
+import native_pin  # practicality/native_pin.py
 
 # Public September 16 inputs (funding.json, mainnet04/evidence.json reused_deployment), read by
 # public_metadata() on every run, including local ones.
@@ -44,7 +45,6 @@ ARTIFACT = ROOT / "contracts/out/Escrow.sol/Escrow.json"
 DEPLOYED_ARTIFACT = Path(os.environ.get("AA_MAINNET_DEPLOYED_ARTIFACT") or "AA_MAINNET_DEPLOYED_ARTIFACT-unset")
 NODE = Path(os.environ.get("AA_NODE") or shutil.which("node") or "node")
 OPENCLAW = ROOT.parent / "openclaw"
-OPENCLAW_REVISION = "84f693f005fd0f0beb1f99c97b24c6e12d21e2e6"
 RPC = "https://mainnet.base.org"
 PAYOUT = 10**10
 PROVIDER_ALLOWANCE = 3 * 10**14
@@ -348,9 +348,8 @@ def run(args):
     if args.output.exists() and any(args.output.iterdir()):
         raise ValueError("use a fresh output directory")
     args.output.mkdir(parents=True, exist_ok=True)
-    revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=OPENCLAW, text=True).strip()
-    if revision != OPENCLAW_REVISION or subprocess.check_output(["git", "status", "--porcelain"], cwd=OPENCLAW, text=True).strip():
-        raise ValueError("native OpenClaw must be the clean pinned integration checkout")
+    if not native_pin.matches(OPENCLAW, "openclaw"):
+        raise ValueError("native OpenClaw must be the upstream.json commit with the release patch applied")
     funding, _ = public_metadata()
     party = funding["role_addresses"]["challenger"] if args.network == "mainnet" else "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
     rng, jobs = random.Random(args.seed), []

@@ -2,10 +2,8 @@ class NativeHermes:
     """Actual patched dispatch/approval hooks with controlled ACP user responses."""
     def __init__(self, hermes_root, fixtures):
         self.root, self.fixtures = Path(hermes_root).resolve(), Path(fixtures).resolve()
-        actual = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=self.root, text=True).strip()
-        dirty = subprocess.check_output(["git", "status", "--porcelain"], cwd=self.root, text=True).strip()
-        if actual != HERMES_REVISION or dirty:
-            raise ValueError("Hermes must be the clean pinned native fork")
+        if not native_pin.matches(self.root, "hermes"):
+            raise ValueError("Hermes must be the upstream.json commit with the release patch applied")
         self.fixtures.mkdir(parents=True, exist_ok=True)
         (self.fixtures / "workspace").mkdir(exist_ok=True)
         os.environ["HERMES_HOME"] = str(self.fixtures / "hermes-home")

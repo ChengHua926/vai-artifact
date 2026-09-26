@@ -36,6 +36,7 @@ sys.path.insert(0, str(REPO / "scripts"))
 # Set before importing _config; none of its wallet-reading helpers are called.
 os.environ["AA_LOCAL"] = "1"
 import _config as C
+import native_pin  # practicality/native_pin.py
 C.bootstrap_packages()
 from aa_commons import ActionRecord, params_hash, registry, trace_hash
 from aa_commons.trace import check_prefixes
@@ -398,12 +399,9 @@ def main():
     args.rpc_url = f"http://127.0.0.1:{args.anvil_port}"
     args.helper_url = f"http://127.0.0.1:{args.helper_port}"
     native_root = REPO.parent / ("hermes-agent" if args.harness == "hermes" else "openclaw")
-    native_revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=native_root, text=True).strip()
-    expected = ("9801de7052b9f746791f96600ea19b9399de4b13" if args.harness == "hermes"
-                else "84f693f005fd0f0beb1f99c97b24c6e12d21e2e6")
-    if native_revision != expected or subprocess.check_output(
-            ["git", "status", "--porcelain"], cwd=native_root, text=True).strip():
-        raise ValueError("native harness must be the clean pinned integration checkout")
+    if not native_pin.matches(native_root, args.harness):
+        raise ValueError("native harness must be its upstream.json commit with the release patch applied")
+    native_revision = native_pin.describe(args.harness)
     paths = source_paths(args.harness)
     hashes = source_hashes(paths)
     outer.mkdir(parents=True, exist_ok=True)
@@ -434,7 +432,6 @@ def main():
         "timing_scope": "native write loop plus session finalization; setup, model, human wait, and post-run validation excluded",
         "network": "loopback Anvil only; chain 31337", "status": "started",
         "versions": {p: importlib.metadata.version(p) for p in ("web3", "requests", "uvicorn", "fastapi", "psutil", "agent-client-protocol", "safe-pysha3")},
-        "extra_dependency_path": str(REPO.parent / ".local/handoff-deps-py312"),
         "original_hermes_runner_sha256": "4445b92268c814c9f494eff10e302b7069fb556287ee0187dcfdc3ab3de00bb6"}
     dump(outer / "refresh-manifest.json", metadata)
     try:

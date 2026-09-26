@@ -1,10 +1,9 @@
 """Native Hermes settlement matrix on the V2 claim flow: 11 sessions, 14 challenges.
 
-Reproduces the September 16 Base mainnet settlement matrix (git show
-00a1a3d:scripts/practicality/run_public.py) after the protocol change: the provider sends
+Reproduces the September 16 Base mainnet settlement matrix after the protocol change: the provider sends
 nothing on chain in answer to a claim. Its service delivers signed evidence to the verifier's
 inbox, and the verifier's service settles every accepted claim. No model calls; approval
-answers are controlled. SETTLEMENT_EXPERIMENT.md maps every case and lists every deviation.
+answers are controlled. practicality/README.md describes the runs.
 
 Processes. This driver is the provider's native Hermes runtime (dispatcher, approval hooks,
 adapter and SDK with the provider key) and the challenger (challenger key). It deploys the
@@ -64,6 +63,7 @@ def _load(path, name):
 # September 25 handoff driver: paced RPC with identical retries, wallet loading and address
 # checks, receipt fee accounting, build validation, child-process and readiness helpers.
 H = _load(ROOT / "practicality/measure_handoff.py", "settlement_handoff_helpers")
+native_pin = _load(ROOT / "practicality/native_pin.py", "native_pin")
 
 import requests  # noqa: E402
 from eth_abi import encode as abi_encode  # noqa: E402
@@ -82,14 +82,12 @@ API = SimpleNamespace(Web3=Web3, Account=Account)
 ARTIFACT = ROOT / "contracts/out/Escrow.sol/Escrow.json"
 PAYOUT = 10**10                     # run_public.PAYOUT, September 16
 BOND = 10**10                       # run_public.BOND, September 16
-HERMES_REVISION = "9801de7052b9f746791f96600ea19b9399de4b13"
 HERMES_ROOT = ROOT.parent / "hermes-agent"
 STRATEGIES = {"10_records_or_30s": (10, 30), "30_records_or_60s": (30, 60),
               "final_only": (10**9, 86400)}
 FORMAL_PYTHON = (3, 12, 13)
 KEYSTORE_DIR = H.PRIVATE / "roles"
-DEFAULT_MAINNET_OUTPUT = (ROOT.parent / "agent_accountability_archive/2026-09-25-v2-claim-flow"
-                          / "settlement-mainnet-01")
+DEFAULT_MAINNET_OUTPUT = ROOT / "practicality/results/new-run"
 ANVIL = Path.home() / ".foundry/bin/anvil"
 ANVIL_MNEMONIC = "test test test test test test test test test test test junk"
 L1_ORACLE = "0x420000000000000000000000000000000000000F"
@@ -178,16 +176,13 @@ def planned_operations(deploy=True):
     return {"deploy": 1, **ops} if deploy else ops
 
 
-# Verbatim from 00a1a3d:scripts/practicality/run_public.py, identical to the archived
-# 2026-09-25-checkpoint-refresh/native_hermes_original.py.txt (checked by test_run_settlement).
+# Identical to practicality/native_hermes_original.py.txt, which checkpoint_refresh.py runs.
 class NativeHermes:
     """Actual patched dispatch/approval hooks with controlled ACP user responses."""
     def __init__(self, hermes_root, fixtures):
         self.root, self.fixtures = Path(hermes_root).resolve(), Path(fixtures).resolve()
-        actual = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=self.root, text=True).strip()
-        dirty = subprocess.check_output(["git", "status", "--porcelain"], cwd=self.root, text=True).strip()
-        if actual != HERMES_REVISION or dirty:
-            raise ValueError("Hermes must be the clean pinned native fork")
+        if not native_pin.matches(self.root, "hermes"):
+            raise ValueError("Hermes must be the upstream.json commit with the release patch applied")
         self.fixtures.mkdir(parents=True, exist_ok=True)
         (self.fixtures / "workspace").mkdir(exist_ok=True)
         os.environ["HERMES_HOME"] = str(self.fixtures / "hermes-home")
@@ -978,7 +973,7 @@ class Run:
             "source_revision": self.revision, "source_dirty": bool(self.status),
             "source_status": self.status.splitlines(), "source_diffstat": self.diffstat.splitlines(),
             "artifact_sha256": hashlib.sha256(ARTIFACT.read_bytes()).hexdigest(),
-            "hermes_revision": HERMES_REVISION, "python": sys.version, "executable": sys.executable,
+            "hermes_revision": native_pin.describe("hermes"), "python": sys.version, "executable": sys.executable,
             "machine": platform.platform(), "payout_wei": PAYOUT, "challenge_bond_wei": BOND,
             "fee_ceiling_wei": self.fee_ceiling, "signing_limits": {
                 "chain_id": self.profile["chain_id"], "max_gas": MAX_GAS,

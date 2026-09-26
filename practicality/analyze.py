@@ -355,7 +355,7 @@ def main():
     check("Recording disabled (s), Hermes", f(hermes_rec["capture_off"]["mean"], 2), "6.07")
     check("Recording disabled (s), OpenClaw", f(openclaw_rec["capture_off"]["mean"], 3), "0.022")
     paper_rec = {"http_store": ("6.80", "1.096", "0.73 [0.70, 0.77]", "1.074 [1.059, 1.089]"),
-                 "http_store_anvil": ("7.83", "1.788", "1.76 [1.69, 1.85]", "1.765 [1.709, 1.821]")}
+                 "http_store_anvil": ("7.83", "1.787", "1.76 [1.69, 1.85]", "1.765 [1.709, 1.821]")}
     names = {"http_store": "Recording and HTTP store", "http_store_anvil": "Recording, store, and local chain"}
     for mode in ("http_store", "http_store_anvil"):
         paper = paper_rec[mode]
