@@ -1,25 +1,28 @@
 """Print every operating-cost number of Section 5.3 and its appendix from the recorded results.
 
 Usage: python practicality/analyze.py
-Reads only practicality/results/ (standard library only, writes nothing) and prints each
-number next to the value printed in the paper; exits 1 if any differs.
+Standard library only; reads practicality/results/ and writes nothing. Prints each number next to
+the value printed in the paper and exits 1 if any differs.
 
 Inputs (V2 runs of 2026-09-25, one prototype revision):
-  settlement-mainnet-01/          14-challenge settlement experiment on Base mainnet (run_settlement.py)
+  settlement-mainnet-01/          14 challenges on Base mainnet (run_settlement.py): summary.json
   checkpoint-mainnet-{hermes,openclaw}-01/
-                                  checkpoint-policy matrix on Base mainnet (checkpoint_refresh.py);
-                                  chain-journal.json and native-results.json keep only the fields read here
-  recording-{hermes,openclaw}-01/ recording overhead, 100 writes x 30 paired runs (measure_recording_refresh.py)
-  verifier-handoff-01/            signing, delivery and verification of a claim's trace (measure_verifier_handoff.py)
-  verifier-prefix-comparison-01/  verifier processing, streaming vs. original prefix check
-                                  (measure_verifier_handoff.py --mode compare-prefixes)
+                                  checkpoint-policy matrix on Base mainnet (checkpoint_refresh.py): summary.json,
+                                  canonical-receipts.json, and chain-journal.json / native-results.json reduced
+                                  to the fields read here (operation, session, transaction hash; record timestamps)
+  recording-{hermes,openclaw}-01/ recording overhead, 100 writes x 30 paired repetitions (measure_recording_refresh.py):
+                                  per-run rows (runtime-raw.jsonl / native-results.json) and the script's summary
+  verifier-handoff-01/            signing and delivery of a 10,000-record trace (measure_verifier_handoff.py)
+  verifier-prefix-comparison-01/  verifier processing time and memory (measure_verifier_handoff.py --mode compare-prefixes)
 
 Definitions follow the paper: fees = canonical L2 execution + L1 data fee; record wait = record
 timestamp to the first observed receipt of the first commitment covering it; USD at the paper's
-reference price of 2,682.79 USD/ETH; MiB = 2**20 bytes.
+reference price of 2,682.79 USD/ETH; MiB = 2**20 bytes. Recording and verifier numbers are recomputed
+from the per-run rows with the run scripts' own statistics (seeded bootstrap) and checked against the
+summaries those scripts wrote.
 """
 import json
-import math
+import random
 import statistics
 import sys
 from pathlib import Path
@@ -165,6 +168,72 @@ def mainnet_numbers(settlement_dir, hermes_dir, openclaw_dir):
     }
 
 
+# --- Recording and verifier numbers from the per-run rows (same statistics as the run scripts) ----
+
+def percentile(values, q):
+    values = sorted(values)
+    at = (len(values) - 1) * q
+    lo = int(at)
+    return values[lo] + (values[min(lo + 1, len(values) - 1)] - values[lo]) * (at - lo)
+
+
+def paired_bootstrap(values, seed=20260916, samples=10000):
+    """measure_recording_refresh.py (Hermes)."""
+    rng = random.Random(seed)
+    means = [statistics.mean(rng.choices(values, k=len(values))) for _ in range(samples)]
+    return {"mean": statistics.mean(values), "ci95": [percentile(means, .025), percentile(means, .975)]}
+
+
+def paired_ci(values, seed=20260924):
+    """analyze_openclaw.py (OpenClaw)."""
+    rng = random.Random(seed)
+    means = sorted(statistics.mean(rng.choices(values, k=len(values))) for _ in range(10000))
+    return {"mean": statistics.mean(values), "bootstrap_95_ci": [means[249], means[9749]], "pairs": len(values)}
+
+
+def jsonl(path):
+    return [json.loads(line) for line in Path(path).read_text().splitlines() if line.strip()]
+
+
+MODES = ["capture_off", "http_store", "http_store_anvil"]
+
+
+def hermes_recording(directory):
+    """Mean time of 100 writes per configuration and paired added time vs. recording disabled."""
+    rows = [r for r in jsonl(directory / "runtime-raw.jsonl") if not r["warmup"]]
+    key = "total_action_plus_finalization_seconds"
+    baseline = {r["repetition"]: r for r in rows if r["mode"] == "capture_off"}
+    out = {mode: {"n": sum(r["mode"] == mode for r in rows),
+                  "mean": statistics.mean(r[key] for r in rows if r["mode"] == mode)} for mode in MODES}
+    for mode in MODES[1:]:
+        out[mode]["added"] = paired_bootstrap([r[key] - baseline[r["repetition"]][key] for r in rows if r["mode"] == mode])
+    summary = load(directory / "runtime-summary.json")
+    agrees = all(summary[m][key]["mean"] == out[m]["mean"] and summary[m][key]["n"] == out[m]["n"] for m in MODES) and all(
+        summary["paired_differences_vs_capture_off"][m][key] == out[m]["added"] for m in MODES[1:])
+    return out, agrees
+
+
+def openclaw_recording(directory):
+    rows = [r for r in load(directory / "native-results.json")["jobs"] if not r["warmup"]]
+    baseline = {r["repetition"]: r for r in rows if r["mode"] == "capture_off"}
+    out = {}
+    for mode in MODES:
+        subset = [r for r in rows if r["mode"] == mode]
+        out[mode] = {"n": len(subset), "mean": statistics.mean(r["elapsed_ms"] / 1000 for r in subset)}
+        if mode != "capture_off":
+            out[mode]["added"] = paired_ci([(r["elapsed_ms"] - baseline[r["repetition"]]["elapsed_ms"]) / 1000
+                                            for r in subset])
+    summary = load(directory / "summary.json")["modes"]
+    agrees = all(summary[m]["elapsed_seconds"]["mean"] == out[m]["mean"] for m in MODES) and all(
+        summary[m]["added_seconds_vs_recording_off"] == out[m]["added"] for m in MODES[1:])
+    return out, agrees
+
+
+def cell_means(rows, fields, **match):
+    subset = [r for r in rows if all(r[k] == v for k, v in match.items())]
+    return {"n": len(subset), **{field: statistics.mean(r[field] for r in subset) for field in fields}}
+
+
 # --- Formatting and checking ---------------------------------------------------------------------
 
 rows = []   # (label, computed, paper value or None)
@@ -213,15 +282,24 @@ def main():
     hermes_dir, openclaw_dir = RESULTS / "checkpoint-mainnet-hermes-01", RESULTS / "checkpoint-mainnet-openclaw-01"
     n = mainnet_numbers(settlement_dir, hermes_dir, openclaw_dir)
     settlement = load(settlement_dir / "summary.json")
-    paired = load(RESULTS / "verifier-prefix-comparison-01/paired-summary.json")
-    handoff = load(RESULTS / "verifier-handoff-01/handoff-summary.json")
-    hermes_rec = load(RESULTS / "recording-hermes-01/runtime-summary.json")
-    openclaw_rec = load(RESULTS / "recording-openclaw-01/summary.json")
     h, o = n["checkpoint"]["hermes"]["policies"], n["checkpoint"]["openclaw"]["policies"]
-    # Each verifier field is {n, mean, median, p95, min, max} over 5 fresh processes; the paper reports means.
-    arms = {key: {arm: {k: v["mean"] for k, v in fields.items()} for arm, fields in value["arms"].items()}
-            for key, value in paired.items()}
-    stream = {key: value["streaming"] for key, value in arms.items()}
+    # Verifier processing: mean over 5 fresh processes per cell, streaming prefix check (the released verifier).
+    fields = ["verification_seconds", "prefix_validation_seconds", "verifier_peak_rss_bytes"]
+    paired_rows = jsonl(RESULTS / "verifier-prefix-comparison-01/paired-raw.jsonl")
+    paired_summary = load(RESULTS / "verifier-prefix-comparison-01/paired-summary.json")
+    stream = {}
+    for key, value in paired_summary.items():
+        records, cadence = key.split(":")
+        stream[key] = cell_means(paired_rows, fields, records=int(records), cadence=cadence, implementation="streaming")
+    paired_agrees = all(paired_summary[key]["arms"]["streaming"][field]["mean"] == stream[key][field]
+                        for key in stream for field in fields)
+    handoff_rows = jsonl(RESULTS / "verifier-handoff-01/handoff-raw.jsonl")
+    handoff_summary = load(RESULTS / "verifier-handoff-01/handoff-summary.json")
+    handoff = cell_means(handoff_rows, ["signing_seconds", "delivery_seconds"], records=10000, cadence="every_10_records")
+    handoff_agrees = all(handoff_summary["10000:every_10_records"][field]["mean"] == handoff[field]
+                         for field in ("signing_seconds", "delivery_seconds"))
+    hermes_rec, hermes_rec_agrees = hermes_recording(RESULTS / "recording-hermes-01")
+    openclaw_rec, openclaw_rec_agrees = openclaw_recording(RESULTS / "recording-openclaw-01")
 
     # Table 2 (tab:eval:policies): fee per session (USD), mean record wait (s), verifier time (s).
     check("Fee reference price (USD per ETH)", f"{USD_PER_ETH:,.2f}", "2,682.79")
@@ -256,26 +334,26 @@ def main():
                     and ten["mean_wait_s"] > thirty["mean_wait_s"]) else "no", "yes")
 
     # Recording overhead (tab:eval:recording-cost): 100 writes, 30 measured repetitions per configuration.
-    hdiff, omodes = hermes_rec["paired_differences_vs_capture_off"], openclaw_rec["modes"]
-    total = "total_action_plus_finalization_seconds"
-    check("Recording, repetitions per configuration, Hermes / OpenClaw",
-          f"{hermes_rec['capture_off'][total]['n']} / {omodes['capture_off']['elapsed_seconds']['n']}", "30 / 30")
-    check("Recording disabled (s), Hermes", f(hermes_rec["capture_off"][total]["mean"], 2), "6.07")
-    check("Recording disabled (s), OpenClaw", f(omodes["capture_off"]["elapsed_seconds"]["mean"], 3), "0.022")
+    check("Recording, measured repetitions per configuration, Hermes / OpenClaw",
+          f"{hermes_rec['capture_off']['n']} / {openclaw_rec['capture_off']['n']}", "30 / 30")
+    check("Recording disabled (s), Hermes", f(hermes_rec["capture_off"]["mean"], 2), "6.07")
+    check("Recording disabled (s), OpenClaw", f(openclaw_rec["capture_off"]["mean"], 3), "0.022")
     paper_rec = {"http_store": ("6.80", "1.096", "0.73 [0.70, 0.77]", "1.074 [1.059, 1.089]"),
                  "http_store_anvil": ("7.83", "1.788", "1.76 [1.69, 1.85]", "1.765 [1.709, 1.821]")}
     names = {"http_store": "Recording and HTTP store", "http_store_anvil": "Recording, store, and local chain"}
     for mode in ("http_store", "http_store_anvil"):
         paper = paper_rec[mode]
-        check(f"{names[mode]} (s), Hermes", f(hermes_rec[mode][total]["mean"], 2), paper[0])
-        check(f"{names[mode]} (s), OpenClaw", f(omodes[mode]["elapsed_seconds"]["mean"], 3), paper[1])
-        added = hdiff[mode][total]
+        check(f"{names[mode]} (s), Hermes", f(hermes_rec[mode]["mean"], 2), paper[0])
+        check(f"{names[mode]} (s), OpenClaw", f(openclaw_rec[mode]["mean"], 3), paper[1])
+        added = hermes_rec[mode]["added"]
         check(f"{names[mode]}: added (s) [95% CI], Hermes", f"{f(added['mean'], 2)} {ci(added['ci95'], 2)}", paper[2])
-        added = omodes[mode]["added_seconds_vs_recording_off"]
+        added = openclaw_rec[mode]["added"]
         check(f"{names[mode]}: added (s) [95% CI], OpenClaw",
               f"{f(added['mean'], 3)} {ci(added['bootstrap_95_ci'], 3)}", paper[3])
-    per_call = [hdiff["http_store_anvil"][total]["mean"] * 1000 / 100,
-                omodes["http_store_anvil"]["added_seconds_vs_recording_off"]["mean"] * 1000 / 100]
+    check("Recording summaries written by the run scripts agree with the per-run rows",
+          "yes" if hermes_rec_agrees and openclaw_rec_agrees else "no", "yes")
+    per_call = [hermes_rec["http_store_anvil"]["added"]["mean"] * 1000 / 100,
+                openclaw_rec["http_store_anvil"]["added"]["mean"] * 1000 / 100]
     check("Section 5.3: added time per tool call with store and chain (ms), Hermes / OpenClaw",
           f"{f(per_call[0], 1)} / {f(per_call[1], 1)}")
     check("Section 5.3: under 20 ms per tool call", "yes" if max(per_call) < 20 else "no", "yes")
@@ -294,11 +372,12 @@ def main():
         check(f"Verifier cost, {cell}: peak memory (MiB)", mib(arm["verifier_peak_rss_bytes"]), paper[2])
 
     # Signing and delivery of a 10,000-record trace with 1,000 checkpoints, five runs.
-    cell = handoff["10000:every_10_records"]
-    check("Signing (s), 10,000 records, 1,000 checkpoints", f(cell["signing_seconds"]["mean"], 3), "0.069")
-    check("Delivery (s), 10,000 records, 1,000 checkpoints", f(cell["delivery_seconds"]["mean"], 3), "0.334")
-    check("Runs averaged", str(cell["signing_seconds"]["n"]), "5")
-    sign_send = cell["signing_seconds"]["mean"] + cell["delivery_seconds"]["mean"]
+    check("Verifier summary written by the run script agrees with the per-run rows", "yes" if paired_agrees else "no", "yes")
+    check("Signing (s), 10,000 records, 1,000 checkpoints", f(handoff["signing_seconds"], 3), "0.069")
+    check("Delivery (s), 10,000 records, 1,000 checkpoints", f(handoff["delivery_seconds"], 3), "0.334")
+    check("Runs averaged", str(handoff["n"]), "5")
+    check("Handoff summary written by the run script agrees with the per-run rows", "yes" if handoff_agrees else "no", "yes")
+    sign_send = handoff["signing_seconds"] + handoff["delivery_seconds"]
     check("Table 2 caption: signing and delivering adds (s)", f(sign_send, 2), "0.40")
     check("Section 5.3: provider signs and sends in (s)", f(sign_send, 1), "0.4")
     check("Section 5.3: verifier checks and reaches a verdict in (s)",
