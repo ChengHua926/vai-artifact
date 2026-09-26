@@ -5,7 +5,8 @@ Standard library only; reads practicality/results/ and writes nothing. Prints ea
 the value printed in the paper and exits 1 if any differs.
 
 Inputs (V2 runs of 2026-09-25, one prototype revision):
-  settlement-mainnet-01/          14 challenges on Base mainnet (run_settlement.py): summary.json
+  settlement-mainnet-01/          14 challenges on Base mainnet (run_settlement.py): summary.json and its
+                                  84 transactions (hash, role, operation, case, canonical receipt)
   checkpoint-mainnet-{hermes,openclaw}-01/
                                   checkpoint-policy matrix on Base mainnet (checkpoint_refresh.py): summary.json,
                                   canonical-receipts.json, and chain-journal.json / native-results.json reduced
@@ -277,6 +278,21 @@ def receipts_match(directory):
             and len(journal["transactions"]) == len(receipts) == summary["all_transaction_count"])
 
 
+def settlement_receipts_match(directory):
+    """Recompute the settlement's transaction count, per-operation fees and total fee from its canonical receipts."""
+    summary = load(directory / "summary.json")
+    transactions = load(directory / "transactions.json")
+    operations = {}
+    for tx in transactions:
+        entry = operations.setdefault(tx["operation"], [0, 0])
+        entry[0] += 1
+        entry[1] += fee_wei(tx["receipt"])
+    return (len(transactions) == summary["all_transaction_count"]
+            and all(tx["status"] == "canonical" and as_int(tx["receipt"]["status"]) == 1 for tx in transactions)
+            and operations == {op: [v["transactions"], v["total_fee_wei"]] for op, v in summary["operations"].items()}
+            and sum(fee for _, fee in operations.values()) == summary["all_transaction_fee_wei"]), len(transactions)
+
+
 def main():
     settlement_dir = RESULTS / "settlement-mainnet-01"
     hermes_dir, openclaw_dir = RESULTS / "checkpoint-mainnet-hermes-01", RESULTS / "checkpoint-mainnet-openclaw-01"
@@ -401,7 +417,13 @@ def main():
     check("All settlement checks passed", "yes" if s["status"] == "passed" and not s["failed_final_checks"] else "no", "yes")
     check("Mainnet transactions, settlement + both checkpoint matrices (incl. deployment)",
           str(n["grand_total"]["transactions"]), "180")
-    check("Escrow contract on Base mainnet", s["contract"], "0x9eD99dF9702f6fdb0E5a4acad084Adb8342b4c4e")
+    settlement_ok, settlement_tx = settlement_receipts_match(settlement_dir)
+    check("Settlement transactions and fees recomputed from the canonical receipts", "yes" if settlement_ok else "no", "yes")
+    shipped = settlement_tx + sum(len(load(d / "chain-journal.json")["transactions"]) for d in (hermes_dir, openclaw_dir))
+    check("Mainnet transactions with a shipped hash and canonical receipt", str(shipped), "180")
+    deployed = [tx["receipt"]["contractAddress"] for tx in load(settlement_dir / "transactions.json") if tx["operation"] == "deploy"]
+    check("Escrow contract on Base mainnet (deployment receipt)", deployed[0] if deployed == [s["contract"]] else "mismatch",
+          "0x9eD99dF9702f6fdb0E5a4acad084Adb8342b4c4e")
 
     width = max(len(label) for label, _, _ in rows)
     failures = 0
