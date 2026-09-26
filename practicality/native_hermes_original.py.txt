@@ -1,0 +1,68 @@
+class NativeHermes:
+    """Actual patched dispatch/approval hooks with controlled ACP user responses."""
+    def __init__(self, hermes_root, fixtures):
+        self.root, self.fixtures = Path(hermes_root).resolve(), Path(fixtures).resolve()
+        actual = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=self.root, text=True).strip()
+        dirty = subprocess.check_output(["git", "status", "--porcelain"], cwd=self.root, text=True).strip()
+        if actual != HERMES_REVISION or dirty:
+            raise ValueError("Hermes must be the clean pinned native fork")
+        self.fixtures.mkdir(parents=True, exist_ok=True)
+        (self.fixtures / "workspace").mkdir(exist_ok=True)
+        os.environ["HERMES_HOME"] = str(self.fixtures / "hermes-home")
+        os.environ["HERMES_INTERACTIVE"] = "1"
+        os.environ["AA_SCOPE_PREFIX"] = str(self.fixtures / "workspace") + "/"
+        for path in (str(self.root), str(ROOT / "integrations/hermes")):
+            sys.path.insert(0, path)
+        import model_tools
+        import aa_hermes
+        from hermes_cli.plugins import get_plugin_manager
+        self.plugin, self.dispatch = aa_hermes, model_tools.handle_function_call
+        manager = get_plugin_manager()
+        manager._hooks, manager._middleware = {}, {}
+        class Context:
+            def register_hook(self, name, callback):
+                manager._hooks.setdefault(name, []).append(callback)
+            def register_middleware(self, name, callback):
+                manager._middleware.setdefault(name, []).append(callback)
+        aa_hermes.register(Context())
+        self.loop = asyncio.new_event_loop()
+        self.thread = threading.Thread(target=self.loop.run_forever, daemon=True)
+        self.thread.start()
+        self.sources = {"model_tools": str(Path(model_tools.__file__).resolve()),
+                        "aa_hermes": str(Path(aa_hermes.__file__).resolve())}
+
+    def begin(self, name, store, escrow, provider, party, cadence=(10, 30)):
+        acc, session = self.plugin.begin_session(party=party, store=store, chain=escrow,
+            provider_addr=provider, payout_wei=PAYOUT, native_session_id=name)
+        acc.checkpoint_records, acc.checkpoint_seconds = cadence
+        return acc, session
+
+    def write(self, name, index, *, outside=False, decision="allow_once"):
+        from acp.schema import AllowedOutcome
+        from acp_adapter.edit_approval import (make_acp_edit_approval_requester,
+            set_edit_approval_requester, reset_edit_approval_requester)
+        async def answer(**kwargs):
+            return SimpleNamespace(outcome=AllowedOutcome(outcome="selected", option_id=decision))
+        token = (set_edit_approval_requester(make_acp_edit_approval_requester(answer, self.loop, name))
+                 if decision is not None else None)
+        path = self.fixtures / ("outside" if outside else "workspace") / f"{name}-{index}.txt"
+        path.parent.mkdir(exist_ok=True)
+        content = f"native experiment fixture {index}\n" + "x" * 1024
+        try:
+            started = time.perf_counter()
+            result = self.dispatch("write_file", {"path": str(path), "content": content},
+                session_id=name, tool_call_id=f"{name}-{index}")
+            elapsed = time.perf_counter() - started
+            if decision != "deny":
+                assert path.read_text() == content, result
+            else:
+                assert not path.exists(), result
+            return {"tool": "write_file", "path": str(path), "result": result,
+                    "effect_sha256": hashlib.sha256(content.encode()).hexdigest() if path.exists() else None,
+                    "action_seconds": elapsed, "completed_at_unix": time.time()}
+        finally:
+            if token is not None:
+                reset_edit_approval_requester(token)
+
+    def end(self, name):
+        return self.plugin.end_session(native_session_id=name)
