@@ -16,6 +16,7 @@ An agent provider registers promises, with a reserve, in an escrow contract. An 
 | `integrations/` | Hermes and OpenClaw adapters and the patches they need |
 | `scripts/` | Provider and verifier services, deployment, and the local demo |
 | `agent/` | The file agent used by the local demo |
+| `eval/` | The benchmark replay behind Table 1 and the captured runs it reads (see `eval/README.md`) |
 
 ## Claim flow
 

@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "phase": "capture_only",
+  "stop_after": "validation_and_sha256",
+  "prototype_capture_commit": "4bf69fb4856c671eec817167b5e334ac03c89ed7",
+  "tau2_capture_commit": "0000000000000000000000000000000000000000",
+  "global_max_concurrent_shards": 8,
+  "models": {
+    "glm47": {
+      "model": "z-ai/glm-4.7-flash",
+      "provider_tag": "deepinfra/bf16",
+      "endpoint_revision": "z-ai/glm-4.7-flash-20260119",
+      "catalog_sha256": "6a70e545a64daf0ae4b741e6d263c016e9059b0e8ed4a9cb87d179377c2776ec"
+    },
+    "qwen3_30b": {
+      "model": "qwen/qwen3-30b-a3b",
+      "provider_tag": "alibaba",
+      "endpoint_revision": "qwen/qwen3-30b-a3b-04-28",
+      "catalog_sha256": "0027fb959b24a209d8e2b2b3c12b184ef2ea6e6883eceea4f4cbaa3ecfb835ff"
+    }
+  },
+  "agentdojo": {
+    "benchmark_version": "v1.2.2",
+    "package_version": "0.1.35",
+    "temperature": 0.0,
+    "rollouts": 1,
+    "attack": "important_instructions",
+    "workers_per_shard": 1,
+    "expected_traces_per_model": 1081,
+    "shards": [
+      {"model": "glm47", "suite": "banking", "run_id": "paper_full_20260815_ad_glm47_banking", "max_cost_usd": 0.25},
+      {"model": "glm47", "suite": "workspace", "run_id": "paper_full_20260815_ad_glm47_workspace", "max_cost_usd": 0.75},
+      {"model": "glm47", "suite": "slack", "run_id": "paper_full_20260815_ad_glm47_slack", "max_cost_usd": 0.25},
+      {"model": "glm47", "suite": "travel", "run_id": "paper_full_20260815_ad_glm47_travel", "max_cost_usd": 0.4},
+      {"model": "qwen3_30b", "suite": "banking", "run_id": "paper_full_20260815_ad_qwen3_30b_banking", "max_cost_usd": 0.75},
+      {"model": "qwen3_30b", "suite": "workspace", "run_id": "paper_full_20260815_ad_qwen3_30b_workspace", "max_cost_usd": 3.0},
+      {"model": "qwen3_30b", "suite": "slack", "run_id": "paper_full_20260815_ad_qwen3_30b_slack", "max_cost_usd": 0.75},
+      {"model": "qwen3_30b", "suite": "travel", "run_id": "paper_full_20260815_ad_qwen3_30b_travel", "max_cost_usd": 1.25}
+    ]
+  },
+  "tau": {
+    "seed": 300,
+    "num_trials": 1,
+    "max_concurrency_per_shard": 1,
+    "timeout_seconds": 600,
+    "user_model": "openai/gpt-4.1-mini",
+    "user_provider": "openai",
+    "user_endpoint_revision": "openai/gpt-4.1-mini-2025-04-14",
+    "judge_model": "openai/gpt-4.1-2025-04-14",
+    "judge_provider": "openai",
+    "judge_response_model": "openai/gpt-4.1",
+    "expected_simulations_per_model": 164,
+    "shards": [
+      {"model": "glm47", "domain": "airline", "task_range": [0, 49], "run_id": "paper_full_20260815_tau_glm47_airline", "max_cost_usd": 0.5},
+      {"model": "glm47", "domain": "retail", "task_range": [0, 56], "run_id": "paper_full_20260815_tau_glm47_retail_0_56", "max_cost_usd": 0.9},
+      {"model": "glm47", "domain": "retail", "task_range": [57, 113], "run_id": "paper_full_20260815_tau_glm47_retail_57_113", "max_cost_usd": 0.9},
+      {"model": "qwen3_30b", "domain": "airline", "task_range": [0, 49], "run_id": "paper_full_20260815_tau_qwen3_30b_airline", "max_cost_usd": 1.0},
+      {"model": "qwen3_30b", "domain": "retail", "task_range": [0, 56], "run_id": "paper_full_20260815_tau_qwen3_30b_retail_0_56", "max_cost_usd": 1.7},
+      {"model": "qwen3_30b", "domain": "retail", "task_range": [57, 113], "run_id": "paper_full_20260815_tau_qwen3_30b_retail_57_113", "max_cost_usd": 1.7}
+    ]
+  },
+  "rerun_policy": {
+    "benchmark_outcomes_never_trigger_reruns": true,
+    "agentdojo_resume_only_with_matching_lock": true,
+    "tau_failed_shards_are_preserved_and_replaced_only_by_an_identical_fresh_shard": true,
+    "first_complete_valid_shard_is_accepted": true
+  },
+  "forbidden_during_phase": [
+    "promise_evaluation",
+    "coverage_analysis",
+    "normalization",
+    "viewer_updates",
+    "figure_generation",
+    "documentation_updates",
+    "paper_changes",
+    "git_commits",
+    "git_pushes"
+  ]
+}
