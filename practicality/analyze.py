@@ -1,0 +1,342 @@
+"""Print every operating-cost number of Section 5.3 and its appendix from the recorded results.
+
+Usage: python practicality/analyze.py
+Reads only practicality/results/ (standard library only, writes nothing) and prints each
+number next to the value printed in the paper; exits 1 if any differs.
+
+Inputs (V2 runs of 2026-09-25, one prototype revision):
+  settlement-mainnet-01/          14-challenge settlement experiment on Base mainnet (run_settlement.py)
+  checkpoint-mainnet-{hermes,openclaw}-01/
+                                  checkpoint-policy matrix on Base mainnet (checkpoint_refresh.py);
+                                  chain-journal.json and native-results.json keep only the fields read here
+  recording-{hermes,openclaw}-01/ recording overhead, 100 writes x 30 paired runs (measure_recording_refresh.py)
+  verifier-handoff-01/            signing, delivery and verification of a claim's trace (measure_verifier_handoff.py)
+  verifier-prefix-comparison-01/  verifier processing, streaming vs. original prefix check
+                                  (measure_verifier_handoff.py --mode compare-prefixes)
+
+Definitions follow the paper: fees = canonical L2 execution + L1 data fee; record wait = record
+timestamp to the first observed receipt of the first commitment covering it; USD at the paper's
+reference price of 2,682.79 USD/ETH; MiB = 2**20 bytes.
+"""
+import json
+import math
+import statistics
+import sys
+from pathlib import Path
+
+RESULTS = Path(__file__).resolve().parent / "results"
+USD_PER_ETH = 2682.79
+POLICIES = ["10_records_or_30s", "30_records_or_60s", "final_only"]
+LABELS = {"10_records_or_30s": "Every 10 records or 30 s (default)", "30_records_or_60s": "Every 30 records or 60 s",
+          "final_only": "Final commitment only"}
+OPS = [("registerPromise", "Register promise"), ("openSession", "Open session"),
+       ("checkpointTrace", "Submit checkpoint"), ("commitTrace", "Commit final trace"),
+       ("challenge", "File challenge"), ("submitVerdict", "Submit verdict")]
+
+
+# --- Mainnet settlement and checkpoint matrix (same computation that produced the paper's numbers) ---
+
+def load(path):
+    return json.loads(Path(path).read_text())
+
+
+def as_int(value):
+    if value is None:
+        return 0
+    if isinstance(value, str):
+        return int(value, 16) if value.startswith("0x") else int(value)
+    return int(value)
+
+
+def fee_wei(receipt):
+    """Canonical Base fee: L2 execution plus the L1 data fee (and operator fee if present)."""
+    l2 = as_int(receipt["gasUsed"]) * as_int(receipt["effectiveGasPrice"])
+    operator = 0
+    if receipt.get("operatorFeeScalar") or receipt.get("operatorFeeConstant"):
+        operator = (as_int(receipt["gasUsed"]) * as_int(receipt.get("operatorFeeScalar")) // 10**6
+                    + as_int(receipt.get("operatorFeeConstant")))
+    return l2 + as_int(receipt.get("l1Fee")) + operator
+
+
+def checkpoint_ops(directory):
+    """Per-operation canonical fees from a checkpoint run's journal and canonical receipts."""
+    journal = load(Path(directory) / "chain-journal.json")
+    receipts = load(Path(directory) / "canonical-receipts.json")["receipts"]
+    out = {}
+    for tx in journal["transactions"]:
+        key = tx["receipt"]["transactionHash"].lower()
+        out.setdefault(tx["operation"], []).append(fee_wei(receipts[key]))
+    return out
+
+
+def settlement_ops(summary):
+    return {op: (v["transactions"], v["total_fee_wei"]) for op, v in summary["operations"].items()}
+
+
+def pending_counts(directory, harness, summary):
+    """Maximum number of records created but not yet covered by a first commitment receipt."""
+    native = load(Path(directory) / "native-results.json")
+    rows = (native["checkpoint_runs"] if harness == "hermes"
+            else [{**r["helper_snapshot"], "strategy": r["strategy"], "repetition": r["repetition"]}
+                  for r in native["jobs"]])
+    waits = {s["session_id"]: s["record_waits_seconds"] for s in summary["sessions"]}
+    per_policy = {}
+    for row in rows:
+        ts = [r["ts"] / 1000 for r in row["records"]]
+        cover = [t + w for t, w in zip(ts, waits[row["session_id"]])]
+        peak = max(sum(1 for tj, cj in zip(ts, cover) if tj <= t < cj) for t in ts)
+        per_policy.setdefault(row["strategy"], []).append(peak)
+    return per_policy
+
+
+def checkpoint_numbers(directory, harness):
+    summary = load(Path(directory) / "summary.json")
+    result = {"transactions": summary["all_transaction_count"],
+              "fee_microeth": summary["all_transaction_fee_wei"] / 1e12,
+              "reserve_deposits_wei": summary.get("reserve_deposits_wei"),
+              "first_receipts_with_zero_block_hash": summary.get("first_receipts_with_zero_block_hash"),
+              "policies": {}}
+    pending = pending_counts(directory, harness, summary)
+    for policy in POLICIES:
+        p = summary["policies"][policy]
+        runs = sorted(p["per_run"], key=lambda r: r["repetition"])
+        sessions = [s for s in summary["sessions"] if s["strategy"] == policy]
+        entry = {
+            "mean_fee_microeth": p["mean_commitment_fee_microeth"],
+            "mean_fee_usd": p["mean_commitment_fee_microeth"] * 1e-6 * USD_PER_ETH,
+            "mean_wait_s": p["mean_record_wait_seconds"],
+            "per_run_mean_wait_s": [r["mean_record_wait_seconds"] for r in runs],
+            "per_run_max_wait_s": [r["max_record_wait_seconds"] for r in runs],
+            "mean_of_per_run_max_wait_s": p["mean_of_per_run_max_record_wait_seconds"],
+            "overall_max_wait_s": p["max_record_wait_seconds"],
+            "checkpoint_counts": p["checkpoint_counts"],
+            "per_run_fee_microeth": [r["commitment_fee_wei"] / 1e12 for r in runs],
+            "max_pending_records": pending.get(policy),
+        }
+        if harness == "hermes":
+            first = [w for s in sessions for w in s["record_waits_seconds"][:8]]
+            rest = [w for s in sessions for w in s["record_waits_seconds"][8:]]
+            entry["first_8_mean_wait_s"] = statistics.mean(first)
+            entry["remaining_mean_wait_s"] = statistics.mean(rest)
+            entry["remaining_count_per_session"] = len(sessions[0]["record_waits_seconds"]) - 8
+        result["policies"][policy] = entry
+    return result, summary
+
+
+def mainnet_numbers(settlement_dir, hermes_dir, openclaw_dir):
+    settlement = load(settlement_dir / "summary.json")
+    hermes, _ = checkpoint_numbers(hermes_dir, "hermes")
+    openclaw, _ = checkpoint_numbers(openclaw_dir, "openclaw")
+
+    # Operation fee table: the Hermes run = settlement matrix + Hermes checkpoint matrix.
+    fees = {}
+    for op, (count, total) in settlement_ops(settlement).items():
+        fees.setdefault(op, []).append((count, total))
+    for op, values in checkpoint_ops(hermes_dir).items():
+        fees.setdefault(op, []).append((len(values), sum(values)))
+    table = []
+    for op, label in OPS:
+        count = sum(c for c, _ in fees.get(op, []))
+        total = sum(t for _, t in fees.get(op, []))
+        table.append({"operation": label, "transactions": count,
+                      "mean_fee_microeth": (total / count / 1e12) if count else None})
+    deploy = fees.get("deploy", [(0, 0)])
+    hermes_run_tx = sum(r["transactions"] for r in table)
+    hermes_run_fee = sum((r["mean_fee_microeth"] or 0) * r["transactions"] for r in table)
+    return {
+        "settlement": {
+            "status": settlement["status"], "contract": settlement["contract_address"],
+            "revision": settlement.get("source_revision"), "source_dirty": settlement.get("source_dirty"),
+            "outcomes": settlement["outcome_table"],
+            "failed_final_checks": [k for k, v in settlement["final_checks"].items() if v is not True],
+            "transactions": settlement["all_transaction_count"],
+            "fee_microeth": settlement["all_transaction_fee_wei"] / 1e12,
+            "deploy_fee_microeth": sum(t for _, t in deploy) / 1e12,
+            "fees_by_role_microeth": {k: v / 1e12 for k, v in settlement["fees_by_role_wei"].items()},
+        },
+        "checkpoint": {"hermes": hermes, "openclaw": openclaw},
+        "operation_fee_table_hermes_run": table,
+        "hermes_run_excluding_deploy": {"transactions": hermes_run_tx, "fee_microeth": hermes_run_fee},
+        "openclaw_run": {"transactions": openclaw["transactions"], "fee_microeth": openclaw["fee_microeth"]},
+        "grand_total": {
+            "transactions": settlement["all_transaction_count"] + hermes["transactions"] + openclaw["transactions"],
+            "fee_microeth": settlement["all_transaction_fee_wei"] / 1e12 + hermes["fee_microeth"] + openclaw["fee_microeth"],
+        },
+    }
+
+
+# --- Formatting and checking ---------------------------------------------------------------------
+
+rows = []   # (label, computed, paper value or None)
+
+
+def check(label, computed, paper=None):
+    rows.append((label, computed, paper))
+
+
+def f(value, digits):
+    return f"{value:.{digits}f}"
+
+
+def small(value, digits=4):
+    text = f(value, digits)
+    return f"<{10 ** -digits:.{digits}f}" if float(text) == 0 else text
+
+
+def mib(value):
+    return f"{value / 2**20:,.1f}"
+
+
+def ci(entry, digits):
+    lo, hi = entry
+    return f"[{f(lo, digits)}, {f(hi, digits)}]"
+
+
+def receipts_match(directory):
+    """Recompute each session's commitment fee and the run's total fee from the canonical receipts."""
+    summary = load(directory / "summary.json")
+    journal = load(directory / "chain-journal.json")
+    receipts = load(directory / "canonical-receipts.json")["receipts"]
+    per_session, total = {}, 0
+    for tx in journal["transactions"]:
+        fee = fee_wei(receipts[tx["receipt"]["transactionHash"].lower()])
+        total += fee
+        if tx["operation"] in ("checkpointTrace", "commitTrace"):
+            per_session[tx["session_id"]] = per_session.get(tx["session_id"], 0) + fee
+    return (all(per_session.get(s["session_id"]) == s["commitment_fee_wei"] for s in summary["sessions"])
+            and total == summary["all_transaction_fee_wei"]
+            and len(journal["transactions"]) == len(receipts) == summary["all_transaction_count"])
+
+
+def main():
+    settlement_dir = RESULTS / "settlement-mainnet-01"
+    hermes_dir, openclaw_dir = RESULTS / "checkpoint-mainnet-hermes-01", RESULTS / "checkpoint-mainnet-openclaw-01"
+    n = mainnet_numbers(settlement_dir, hermes_dir, openclaw_dir)
+    settlement = load(settlement_dir / "summary.json")
+    paired = load(RESULTS / "verifier-prefix-comparison-01/paired-summary.json")
+    handoff = load(RESULTS / "verifier-handoff-01/handoff-summary.json")
+    hermes_rec = load(RESULTS / "recording-hermes-01/runtime-summary.json")
+    openclaw_rec = load(RESULTS / "recording-openclaw-01/summary.json")
+    h, o = n["checkpoint"]["hermes"]["policies"], n["checkpoint"]["openclaw"]["policies"]
+    # Each verifier field is {n, mean, median, p95, min, max} over 5 fresh processes; the paper reports means.
+    arms = {key: {arm: {k: v["mean"] for k, v in fields.items()} for arm, fields in value["arms"].items()}
+            for key, value in paired.items()}
+    stream = {key: value["streaming"] for key, value in arms.items()}
+
+    # Table 2 (tab:eval:policies): fee per session (USD), mean record wait (s), verifier time (s).
+    check("Fee reference price (USD per ETH)", f"{USD_PER_ETH:,.2f}", "2,682.79")
+    paper_fee = {"10_records_or_30s": ("0.00512", "0.00378"), "30_records_or_60s": ("0.00378", "0.00244"),
+                 "final_only": ("0.00086", "0.00087")}
+    paper_wait = {"10_records_or_30s": ("12.46", "12.27"), "30_records_or_60s": ("11.25", "10.91"),
+                  "final_only": ("12.03", "11.14")}
+    paper_longest = {"10_records_or_30s": ("33.9", "33.9"), "30_records_or_60s": ("41.4", "41.4"),
+                     "final_only": ("46.8", "45.3")}
+    for policy in POLICIES:
+        for i, (name, data) in enumerate((("Hermes", h), ("OpenClaw", o))):
+            check(f"Table 2, {LABELS[policy]}: fee per session (USD), {name}",
+                  f(data[policy]["mean_fee_usd"], 5), paper_fee[policy][i])
+        for i, (name, data) in enumerate((("Hermes", h), ("OpenClaw", o))):
+            check(f"Table 2, {LABELS[policy]}: mean record wait (s), {name}",
+                  f(data[policy]["mean_wait_s"], 2), paper_wait[policy][i])
+    check("Table 2, verifier time (s), 10,000 records, 1,000 checkpoints",
+          f(stream["10000:every_10_records"]["verification_seconds"], 3), "0.203")
+    check("Table 2, verifier time (s), 10,000 records, 0 checkpoints",
+          f(stream["10000:final_only"]["verification_seconds"], 3), "0.131")
+    check("Table 2 fees recomputed from the canonical receipts, Hermes", "yes" if receipts_match(hermes_dir) else "no", "yes")
+    check("Table 2 fees recomputed from the canonical receipts, OpenClaw", "yes" if receipts_match(openclaw_dir) else "no", "yes")
+
+    # Longest waits: mean over the three runs of each run's maximum record wait.
+    for policy in POLICIES:
+        for i, (name, data) in enumerate((("Hermes", h), ("OpenClaw", o))):
+            check(f"Longest wait, mean of per-run max (s), {LABELS[policy]}, {name}",
+                  f(data[policy]["mean_of_per_run_max_wait_s"], 1), paper_longest[policy][i])
+    ten, thirty = h["10_records_or_30s"], h["30_records_or_60s"]
+    check("Hermes: ten-record policy has the shorter maximum but longer average wait than thirty-record",
+          "yes" if (ten["mean_of_per_run_max_wait_s"] < thirty["mean_of_per_run_max_wait_s"]
+                    and ten["mean_wait_s"] > thirty["mean_wait_s"]) else "no", "yes")
+
+    # Recording overhead (tab:eval:recording-cost): 100 writes, 30 measured repetitions per configuration.
+    hdiff, omodes = hermes_rec["paired_differences_vs_capture_off"], openclaw_rec["modes"]
+    total = "total_action_plus_finalization_seconds"
+    check("Recording, repetitions per configuration, Hermes / OpenClaw",
+          f"{hermes_rec['capture_off'][total]['n']} / {omodes['capture_off']['elapsed_seconds']['n']}", "30 / 30")
+    check("Recording disabled (s), Hermes", f(hermes_rec["capture_off"][total]["mean"], 2), "6.07")
+    check("Recording disabled (s), OpenClaw", f(omodes["capture_off"]["elapsed_seconds"]["mean"], 3), "0.022")
+    paper_rec = {"http_store": ("6.80", "1.096", "0.73 [0.70, 0.77]", "1.074 [1.059, 1.089]"),
+                 "http_store_anvil": ("7.83", "1.788", "1.76 [1.69, 1.85]", "1.765 [1.709, 1.821]")}
+    names = {"http_store": "Recording and HTTP store", "http_store_anvil": "Recording, store, and local chain"}
+    for mode in ("http_store", "http_store_anvil"):
+        paper = paper_rec[mode]
+        check(f"{names[mode]} (s), Hermes", f(hermes_rec[mode][total]["mean"], 2), paper[0])
+        check(f"{names[mode]} (s), OpenClaw", f(omodes[mode]["elapsed_seconds"]["mean"], 3), paper[1])
+        added = hdiff[mode][total]
+        check(f"{names[mode]}: added (s) [95% CI], Hermes", f"{f(added['mean'], 2)} {ci(added['ci95'], 2)}", paper[2])
+        added = omodes[mode]["added_seconds_vs_recording_off"]
+        check(f"{names[mode]}: added (s) [95% CI], OpenClaw",
+              f"{f(added['mean'], 3)} {ci(added['bootstrap_95_ci'], 3)}", paper[3])
+    per_call = [hdiff["http_store_anvil"][total]["mean"] * 1000 / 100,
+                omodes["http_store_anvil"]["added_seconds_vs_recording_off"]["mean"] * 1000 / 100]
+    check("Section 5.3: added time per tool call with store and chain (ms), Hermes / OpenClaw",
+          f"{f(per_call[0], 1)} / {f(per_call[1], 1)}")
+    check("Section 5.3: under 20 ms per tool call", "yes" if max(per_call) < 20 else "no", "yes")
+    fees = [d[p]["mean_fee_usd"] for d in (h, o) for p in POLICIES]
+    check("Section 5.3: under 1 cent per session on Base mainnet", "yes" if max(fees) < 0.01 else "no", "yes")
+
+    # Verifier cost (tab:eval:verifier-cost): streaming prefix check, from the verifier's stored copy.
+    paper_cost = {(100, "final_only"): ("0.0023", "<0.0001", "78.8"), (100, "every_10_records"): ("0.0030", "0.0008", "78.8"),
+                  (1000, "final_only"): ("0.0132", "<0.0001", "85.0"), (1000, "every_10_records"): ("0.0201", "0.0071", "84.9"),
+                  (10000, "final_only"): ("0.1307", "0.0002", "159.5"), (10000, "every_10_records"): ("0.2029", "0.0722", "159.8")}
+    for (records, cadence), paper in paper_cost.items():
+        arm = stream[f"{records}:{cadence}"]
+        cell = f"{records:,} records, {records // 10 if cadence == 'every_10_records' else 0:,} checkpoints"
+        check(f"Verifier cost, {cell}: total (s)", f(arm["verification_seconds"], 4), paper[0])
+        check(f"Verifier cost, {cell}: prefix checks (s)", small(arm["prefix_validation_seconds"]), paper[1])
+        check(f"Verifier cost, {cell}: peak memory (MiB)", mib(arm["verifier_peak_rss_bytes"]), paper[2])
+
+    # Signing and delivery of a 10,000-record trace with 1,000 checkpoints, five runs.
+    cell = handoff["10000:every_10_records"]
+    check("Signing (s), 10,000 records, 1,000 checkpoints", f(cell["signing_seconds"]["mean"], 3), "0.069")
+    check("Delivery (s), 10,000 records, 1,000 checkpoints", f(cell["delivery_seconds"]["mean"], 3), "0.334")
+    check("Runs averaged", str(cell["signing_seconds"]["n"]), "5")
+    sign_send = cell["signing_seconds"]["mean"] + cell["delivery_seconds"]["mean"]
+    check("Table 2 caption: signing and delivering adds (s)", f(sign_send, 2), "0.40")
+    check("Section 5.3: provider signs and sends in (s)", f(sign_send, 1), "0.4")
+    check("Section 5.3: verifier checks and reaches a verdict in (s)",
+          f(stream["10000:every_10_records"]["verification_seconds"], 1), "0.2")
+
+    # Mainnet settlement experiment (tab:eval:mainnet-cases).
+    s = n["settlement"]
+    check("Mainnet challenges", str(sum(r["challenges"] for r in s["outcomes"])), "14")
+    check("Mainnet sessions challenged", str(settlement["operations"]["openSession"]["transactions"]), "11")
+    paper_cases = {"Approved write within scope, checked for scope": "3, no violation",
+                   "Same approved write, checked for authorization": "3, no violation",
+                   "Approved write outside the promised scope": "3, violation",
+                   "Native write without the promise's required approval": "3, violation",
+                   "Evidence altered after the final commitment": "1, violation",
+                   "Final trace contradicts an earlier checkpoint": "1, violation"}
+    observed = {r["case"]: f"{r['challenges']}, {', '.join(r['observed'])}" for r in s["outcomes"]}
+    for case, paper in paper_cases.items():
+        check(f"  {case}: challenges, outcome", observed.get(case, "missing"), paper)
+    check("  Each observed outcome equals the case's expected outcome",
+          "yes" if all(r["observed"] == [r["expected"]] for r in s["outcomes"]) else "no", "yes")
+    check("All settlement checks passed", "yes" if s["status"] == "passed" and not s["failed_final_checks"] else "no", "yes")
+    check("Mainnet transactions, settlement + both checkpoint matrices (incl. deployment)",
+          str(n["grand_total"]["transactions"]), "180")
+    check("Escrow contract on Base mainnet", s["contract"], "0x9eD99dF9702f6fdb0E5a4acad084Adb8342b4c4e")
+
+    width = max(len(label) for label, _, _ in rows)
+    failures = 0
+    print(f"{'Quantity':<{width}}  {'computed':>24}  paper")
+    for label, computed, paper in rows:
+        status = ""
+        if paper is not None:
+            status = f"{paper}  {'ok' if computed == paper else 'DIFFERS'}"
+            failures += computed != paper
+        print(f"{label:<{width}}  {computed:>24}  {status}")
+    checked = sum(paper is not None for _, _, paper in rows)
+    print(f"\n{checked - failures}/{checked} values match the paper exactly.")
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
